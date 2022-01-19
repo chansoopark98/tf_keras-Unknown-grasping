@@ -1,21 +1,14 @@
 import glob
-import imp
 import os
-import tensorflow as tf
-import matplotlib.pyplot as plt
 from imageio import imread, imsave
-import numpy as np
 from tqdm import tqdm
 
 
 class CornellDataset:
-    def __init__(self, file_path, ds_rotate=0, **kwargs):
+    def __init__(self, file_path):
         """
-        :param file_path: Cornell Dataset directory.
-        :param ds_rotate: If splitting the dataset, rotate the list of items by this fraction first
-        :param kwargs: kwargs for GraspDatasetBase
+        :param file_path: Cornell Dataset directory
         """
-
         self.grasp_files = glob.glob(os.path.join(file_path, '*', 'pcd*cpos.txt'))
         self.grasp_files.sort()
         self.length = len(self.grasp_files)
@@ -31,9 +24,6 @@ os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
 
 dataset = CornellDataset(file_path='./datasets/')
-# len = dataset.length
-# print(len)
-# depth_test = imread(dataset.depth_files[0])
 
 pbar = tqdm(range(dataset.length))
 
