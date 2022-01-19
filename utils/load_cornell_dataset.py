@@ -1,8 +1,8 @@
 import glob
 import os
-from imageio import imread, imsave
+from imageio import imread, imsave, imwrite
 from tqdm import tqdm
-
+import shutil
 
 class CornellDataset:
     def __init__(self, file_path):
@@ -26,12 +26,15 @@ os.makedirs(depth_path, exist_ok=True)
 dataset = CornellDataset(file_path='./datasets/')
 
 pbar = tqdm(range(dataset.length))
-
 for i in pbar:
     rgb = imread(dataset.rgb_files[i])
-    imsave(rgb_path + str(i) + '_rgb.jpeg', rgb)
+    imsave(rgb_path + str(i) + '_rgb.png', rgb)
     depth = imread(dataset.depth_files[i])
-    imsave(depth_path + str(i) + '_depth.tiff', depth)
+    # imsave(depth_path + str(i) + '_depth.png', depth)
+    imwrite(depth_path + str(i) + '_depth.tif', depth)
 
 
+print("Data is being compressed.....")
+shutil.make_archive('data', 'zip', output_path)
+print("Data compression complete")
 
