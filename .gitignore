@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 /datasets
+/cornell_output
+
 # C extensions
 *.so
 
