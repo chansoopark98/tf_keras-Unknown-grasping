@@ -1,2 +1,6 @@
 tensorflow==2.6.2
 glob2
+matplotlib
+imageio
+scikit-image
+tensorflow_datasets
