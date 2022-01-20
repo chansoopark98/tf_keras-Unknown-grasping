@@ -1,6 +1,4 @@
 """cornell_grasp dataset."""
-from ast import Global
-from pickle import NONE
 import tensorflow_datasets as tfds
 import os
 import glob
@@ -8,6 +6,12 @@ import tensorflow as tf
 import numpy as np
 import io
 import tifffile as tiff
+# import .utils.dataset_processing.grasp as grasp
+# import .utils.dataset_processing.image as image
+from utils.dataset_processing import grasp, image
+
+
+
 
 def _gr_text_to_no(l, offset=(0, 0)):
   """
@@ -94,30 +98,12 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
 
   
     for i in range(len(img_files)):
-      grs = []
-      with open(box_files[i]) as f:
-        while True:
-          # Load 4 lines at a time, corners of bounding box.
-          p0 = f.readline()
-          if not p0:
-            break  # EOF
-          p1, p2, p3 = f.readline(), f.readline(), f.readline()
-          try:
-            gr = np.array([
-              _gr_text_to_no(p0),
-              _gr_text_to_no(p1),
-              _gr_text_to_no(p2),
-              _gr_text_to_no(p3)
-            ])
-            grs.append(gr)
-          except ValueError:
-            # Some files contain weird values.
-            continue
-        
+      gtbbs = grasp.GraspRectangles.load_from_cornell_file(box_files[i])
+      
       yield i, {
           'rgb': img_files[i],
           'depth': self._load_tif(label_files[i]),
-          'box' : grs
+          'box' : gtbbs
       }
 
   def _load_tif(self, filename: str) -> np.ndarray:
