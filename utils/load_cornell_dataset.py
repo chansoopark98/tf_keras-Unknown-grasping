@@ -19,12 +19,13 @@ class CornellDataset:
 output_path = './cornell_output/'
 rgb_path = output_path + 'rgb/'
 depth_path = output_path + 'depth/'
+box_path = output_path + 'box/'
 os.makedirs(output_path, exist_ok=True)
 os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
+os.makedirs(box_path, exist_ok=True)
 
 dataset = CornellDataset(file_path='./datasets/')
-
 pbar = tqdm(range(dataset.length))
 for i in pbar:
     rgb = imread(dataset.rgb_files[i])
@@ -32,7 +33,8 @@ for i in pbar:
     depth = imread(dataset.depth_files[i])
     # imsave(depth_path + str(i) + '_depth.png', depth)
     imwrite(depth_path + str(i) + '_depth.tif', depth)
-
+    bbox = dataset.grasp_files[i]
+    shutil.copy(bbox, box_path + str(i) + '_box.txt')
 
 print("Data is being compressed.....")
 shutil.make_archive('data', 'zip', output_path)
