@@ -39,7 +39,7 @@ def classifier(x, output_filters, kernel_size, activation, prefix):
     return x
 
 
-def grconvnet3(input_shape, channel_size=32 , output_channels=1):
+def grconvnet(input_shape, channel_size=32 , output_channels=1):
     inputs = Input(shape=input_shape, name='model_input')
 
     x = conv3x3(inputs, filters=channel_size, kernel_size=9, strides=1, padding='same', prefix='conv1')
@@ -61,6 +61,7 @@ def grconvnet3(input_shape, channel_size=32 , output_channels=1):
     sin = classifier(x, output_filters=output_channels, kernel_size=3, activation='tanh', prefix='sin')
     width = classifier(x, output_filters=output_channels, kernel_size=3, activation='relu', prefix='width')
 
-    return inputs, pos, cos, sin, width
+    labels = tf.concat([pos, cos, sin, width], axis=-1)
+    return inputs, labels
 
 

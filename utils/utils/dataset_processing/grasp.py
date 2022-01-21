@@ -97,6 +97,14 @@ class GraspRectangles:
         return cls(grs)
 
     @classmethod
+    def load_from_tfdata(cls, tensor):
+        tensor = tensor
+        grs = []
+        for i in range(len(tensor)):
+            grs.append(GraspRectangle(tensor[i]))
+        return cls(grs)
+
+    @classmethod
     def load_from_jacquard_file(cls, fname, scale=1.0):
         """
         Load grasp rectangles from a Jacquard dataset file.
@@ -198,7 +206,10 @@ class GraspRectangles:
         :return: float, mean centre of all GraspRectangles
         """
         points = [gr.points for gr in self.grs]
-        return np.mean(np.vstack(points), axis=0).astype(np.int)
+        
+        return tf.cast(tf.reduce_mean(tf.experimental.numpy.vstack(points),axis=0, keepdims=False), tf.int32)
+        
+        # return np.mean(np.vstack(points), axis=0).astype(np.int)
 
 
 class GraspRectangle:

@@ -28,6 +28,10 @@ class Image:
     @classmethod
     def from_tensor(cls, tensor):
         return cls(tensor.numpy())
+    
+    @classmethod
+    def from_tfdata(cls, tensor):
+        return cls(tensor)
 
     def copy(self):
         """
@@ -179,6 +183,10 @@ class DepthImage(Image):
     @classmethod
     def from_tensor(cls, tensor):
         return cls(tensor.numpy())
+
+    @classmethod
+    def from_tfdata(cls, tensor):
+        return cls(tensor)
 
     def inpaint(self, missing_value=0):
         """

@@ -35,6 +35,7 @@ for batch in train_data:
     batch_x = []
     batch_pos = []
     batch_cos = []
+    
     batch_sin = []
     batch_width = []
 
@@ -44,22 +45,24 @@ for batch in train_data:
 
         # GET center position
         center = gtbbs.center
-        left = max(0, min(center[1] - output_size // 2, 640 - output_size))
-        top = max(0, min(center[0] - output_size // 2, 480 - output_size))
+        left = tf.math.maximum(0, tf.math.minimum(center[1] - output_size // 2, 640 - output_size))
+        top = tf.math.maximum(0, tf.math.minimum(center[0] - output_size // 2, 480 - output_size))
         # get bbox
         gtbbs.rotate(rot, center)
         gtbbs.offset((-top, -left))
         # gtbbs.zoom(zoom, (output_size // 2, output_size // 2)) TODO
         pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
-        width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
-        cos = np.cos(2 * ang_img)
-        sin = np.sin(2 * ang_img)
+        width_img = tf.clip_by_value(width_img, 0.0, output_size /2 ) / (output_size / 2)
+        # cos = np.cos(2 * ang_img)
+        cos = tf.math.cos(2 * ang_img)
+        sin = tf.math.sin(2 * ang_img)
+        
 
 
         # RGB
         img = image.Image.from_tensor(rgb[i])
         img.rotate(rot, center)
-        img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        img.crop((top, left), (tf.math.minimum(480, top + output_size), tf.math.minimum(640, left + output_size)))
         img.zoom(1.0)
         img.resize((output_size, output_size))
         # img.rotate(rot, center)
@@ -69,7 +72,7 @@ for batch in train_data:
         # Depth
         depth_img = image.DepthImage.from_tensor(depth[i])
         depth_img.rotate(rot, center)
-        depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        depth_img.crop((top, left), (tf.math.minimum(480, top + output_size), tf.math.minimum(640, left + output_size)))
         depth_img.normalise()
         depth_img.zoom(1.0)
         depth_img.resize((output_size, output_size))
