@@ -60,7 +60,7 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
             # These are the features of your dataset like images, labels ...
             'rgb': tfds.features.Image(shape=(None, None, 3)),
             'depth': tfds.features.Tensor(shape=(480, 640, 1), dtype=tf.float32),
-            'box': tfds.features.Tensor(shape=(None, 4, 2), dtype=tf.int64),
+            'box': tfds.features.Tensor(shape=(None, 4, 2), dtype=tf.float32),
         }),
         # If there's a common (input, target) tuple from the
         # features, specify them here. They'll be used if
@@ -99,11 +99,14 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
   
     for i in range(len(img_files)):
       gtbbs = grasp.GraspRectangles.load_from_cornell_file(box_files[i])
-      
+      gtbbs = gtbbs.to_array()
+      bbs = np.array(gtbbs)
+      bbs = tf.convert_to_tensor(gtbbs, tf.float32)
+      bbs =bbs.numpy()
       yield i, {
           'rgb': img_files[i],
           'depth': self._load_tif(label_files[i]),
-          'box' : gtbbs
+          'box' : bbs
       }
 
   def _load_tif(self, filename: str) -> np.ndarray:
