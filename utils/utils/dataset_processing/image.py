@@ -24,6 +24,10 @@ class Image:
     @classmethod
     def from_file(cls, fname):
         return cls(imread(fname))
+    
+    @classmethod
+    def from_tensor(cls, tensor):
+        return cls(tensor.numpy())
 
     def copy(self):
         """
@@ -171,6 +175,10 @@ class DepthImage(Image):
     @classmethod
     def from_tiff(cls, fname):
         return cls(imread(fname))
+    
+    @classmethod
+    def from_tensor(cls, tensor):
+        return cls(tensor.numpy())
 
     def inpaint(self, missing_value=0):
         """

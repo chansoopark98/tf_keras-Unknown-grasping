@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.draw import polygon
 from skimage.feature import peak_local_max
-
+import tensorflow as tf
 
 def _gr_text_to_no(l, offset=(0, 0)):
     """
@@ -86,6 +86,14 @@ class GraspRectangles:
                 except ValueError:
                     # Some files contain weird values.
                     continue
+        return cls(grs)
+    
+    @classmethod
+    def load_from_tensor(cls, tensor):
+        tensor = tensor.numpy()
+        grs = []
+        for i in range(len(tensor)):
+            grs.append(GraspRectangle(tensor[i]))
         return cls(grs)
 
     @classmethod
