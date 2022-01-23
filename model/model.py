@@ -12,21 +12,21 @@ def conv3x3(x, filters, kernel_size, strides, padding,
             bn_momentum=0.99, bn_epsilon=0.001, activation='relu', prefix='name'):
     x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_conv2d')(x)
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_bn')(x)
-    x = Activation(activation, name=prefix+'_activation')
+    x = Activation(activation, name=prefix+'_activation')(x)
     return x
 
 def deconv3x3(x, filters, kernel_size, strides, padding,
             bn_momentum=0.99, bn_epsilon=0.001, activation='relu', prefix='name'):
     x = Conv2DTranspose(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_deconv2d')(x)
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_bn')(x)
-    x = Activation(activation, name=prefix+'_activation')
+    x = Activation(activation, name=prefix+'_activation')(x)
     return x
 
 def res_block(x_input, filters, kernel_size, strides, padding,
             bn_momentum=0.99, bn_epsilon=0.001, activation='relu', prefix='name'):
     x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_res_conv2d_1')(x_input)
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_res_bn_1')(x)
-    x = Activation(activation, name=prefix+'_activation_1')
+    x = Activation(activation, name=prefix+'_activation_1')(x)
 
     x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_res_conv2d_2')(x_input)
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_res_bn_2')(x)

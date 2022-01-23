@@ -4,10 +4,10 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
-
+from tqdm import tqdm
 from model.model_builder import model_builder
 from model.loss import Loss
-from utils.data_generator import prepare_dataset
+import matplotlib.pyplot as plt
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
@@ -53,7 +53,10 @@ if MIXED_PRECISION:
 train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
 number_train = meta_data.splits['train'].num_examples
 steps_per_epoch = number_train // BATCH_SIZE
-train_data = prepare_dataset(train_data)
+train_data = train_data.shuffle(1024)
+train_data = train_data.padded_batch(BATCH_SIZE)
+train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
 
 model_input, model_output = model_builder(input_shape=IMAGE_SIZE)
 model = tf.keras.Model(model_input, model_output)
@@ -78,11 +81,27 @@ callback = [checkpoint_val_loss,  tensorboard, lr_scheduler]
 
 model.compile(
     optimizer=optimizer,
-    loss=loss.loss
+    loss=loss.loss,
+    run_eagerly=True
 )
 
-model.summary
-
-history = model.fit(
-    train_data, steps_per_epoch=steps_per_epoch, epochs=EPOCHS, callbacks=callback
-)
+for epoch in range(EPOCHS):
+    pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
+    batch_counter = 0
+    toggle = True
+    dis_res = 0
+    index = 0
+    for sample in pbar:
+        batch_counter += 1
+        # ---------------------
+        #  Train Discriminator
+        # ---------------------
+        # img = tf.cast(features['image'], tf.float32)
+        rgb = sample['rgb']
+        depth = sample['depth']
+        box = sample['box']
+        plt.imshow(rgb[0])
+        plt.show()
+        plt.imshow(depth[0])
+        plt.show()
+        print('box', box[0])

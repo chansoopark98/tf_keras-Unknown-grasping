@@ -51,7 +51,12 @@ def _get_crop_attrs(gtbbs):
     :return: float, mean centre of all GraspRectangles
     """
     points = [gr.points for gr in gtbbs]
-    center = tf.cast(tf.reduce_mean(np.vstack(points),axis=0, keepdims=False), tf.int32)
+    # center = gtbbs.center
+    
+    vstack = tf.experimental.numpy.vstack(points)
+    center = tf.reduce_mean(vstack, axis=0)
+    # center = tf.reduce_mean(
+            # np.vstack(points),axis=0, keepdims=False)
     
     # center = gtbbs.center
     left = tf.math.maximum(0, tf.math.minimum(center[1] - output_size // 2, 640 - output_size))

@@ -4,3 +4,5 @@ matplotlib
 imageio
 scikit-image
 tensorflow_datasets
+torch
+opencv-python
