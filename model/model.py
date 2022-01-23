@@ -40,7 +40,7 @@ def classifier(x, output_filters, kernel_size, activation, prefix):
 
 
 def grconvnet(input_shape, channel_size=32 , output_channels=1):
-    inputs = Input(shape=input_shape, name='model_input')
+    inputs = Input(shape=(input_shape[0], input_shape[1], input_shape[2]), name='model_input')
 
     x = conv3x3(inputs, filters=channel_size, kernel_size=9, strides=1, padding='same', prefix='conv1')
     x = conv3x3(x, filters=channel_size * 2, kernel_size=4, strides=2, padding='same', prefix='conv2')

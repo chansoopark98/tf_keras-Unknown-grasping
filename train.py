@@ -1,4 +1,5 @@
 import argparse
+from pickle import NONE
 import time
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -8,6 +9,8 @@ from tqdm import tqdm
 from model.model_builder import model_builder
 from model.loss import Loss
 import matplotlib.pyplot as plt
+from utils.utils.dataset_processing import grasp, image
+from utils.data_generator import augment
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
@@ -27,7 +30,7 @@ parser.add_argument("--checkpoint_dir", type=str,   help="모델 저장 디렉�
 parser.add_argument("--tensorboard_dir",  type=str,   help="텐서보드 저장 경로", default='tensorboard')
 parser.add_argument("--use_weightDecay",  type=bool,  help="weightDecay 사용 유무", default=False)
 parser.add_argument("--load_weight",  type=bool,  help="가중치 로드", default=False)
-parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=True)
+parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=False)
 parser.add_argument("--distribution_mode",  type=bool,  help="분산 학습 모드 설정", default=True)
 
 args = parser.parse_args()
@@ -81,10 +84,10 @@ callback = [checkpoint_val_loss,  tensorboard, lr_scheduler]
 
 model.compile(
     optimizer=optimizer,
-    loss=loss.loss,
-    run_eagerly=True
+    loss=loss.loss
 )
 
+model.summary()
 for epoch in range(EPOCHS):
     pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
     batch_counter = 0
@@ -100,8 +103,21 @@ for epoch in range(EPOCHS):
         rgb = sample['rgb']
         depth = sample['depth']
         box = sample['box']
-        plt.imshow(rgb[0])
-        plt.show()
-        plt.imshow(depth[0])
-        plt.show()
-        print('box', box[0])
+
+        batch_input = []
+        batch_label = []
+        for i in range(BATCH_SIZE):
+            input_stack, label_stack = augment(rgb=rgb[i], depth=depth[i], box=box[i])
+
+            batch_input.append(input_stack)
+            batch_label.append(label_stack)
+            
+            # batch_input = tf.concat([batch_input, input_stack], axis=0)
+            # batch_label = tf.concat([batch_label, label_stack], axis=0)
+        batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
+        batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
+
+        batch_loss = model.train_on_batch(batch_input, batch_label)
+        pbar.set_description("Epoch : %d Total loss: %f" % (epoch, batch_loss))
+        # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
+                                        # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))

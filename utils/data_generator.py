@@ -50,15 +50,15 @@ def _get_crop_attrs(gtbbs):
     Compute mean center of all GraspRectangles
     :return: float, mean centre of all GraspRectangles
     """
-    points = [gr.points for gr in gtbbs]
+    # points = [gr.points for gr in gtbbs]
     # center = gtbbs.center
     
-    vstack = tf.experimental.numpy.vstack(points)
-    center = tf.reduce_mean(vstack, axis=0)
+    # vstack = tf.experimental.numpy.vstack(points)
+    # center = tf.reduce_mean(vstack, axis=0)
     # center = tf.reduce_mean(
             # np.vstack(points),axis=0, keepdims=False)
     
-    # center = gtbbs.center
+    center = gtbbs.center
     left = tf.math.maximum(0, tf.math.minimum(center[1] - output_size // 2, 640 - output_size))
     top = tf.math.maximum(0, tf.math.minimum(center[0] - output_size // 2, 480 - output_size))
     return center, left, top
@@ -71,9 +71,9 @@ def augment(rgb, depth, box):
     zoom_factor = np.random.uniform(0.5, 1.0)
 
     # get rgb, depth, box
-    rgb_img = image.Image.from_tfdata(rgb)
-    depth_img = image.DepthImage.from_tfdata(depth)
-    gtbbs = grasp.GraspRectangles.load_from_tfdata(box)
+    rgb_img = image.Image.from_tensor(rgb)
+    depth_img = image.DepthImage.from_tensor(depth)
+    gtbbs = grasp.GraspRectangles.load_from_tensor(box)
     
     center, left, top = _get_crop_attrs(gtbbs=gtbbs)
 
@@ -106,10 +106,20 @@ def augment(rgb, depth, box):
     img = tf.concat([rgb_img, depth_img], axis=-1)
 
     pos = tf.convert_to_tensor(pos_img, tf.float32)
+    pos = tf.expand_dims(pos, axis=-1)
+
+    cos = tf.cast(cos, tf.float32)
     cos = tf.convert_to_tensor(cos, tf.float32)
+    cos = tf.expand_dims(cos, axis=-1)
+
+    sin = tf.cast(sin, tf.float32)
     sin = tf.convert_to_tensor(sin, tf.float32)
-    width = tf.convert_to_tensor(width_img, tf.float32)
-    
+    sin = tf.expand_dims(sin, axis=-1)
+
+    width = tf.cast(width_img, tf.float32)
+    width = tf.convert_to_tensor(width, tf.float32)
+    width = tf.expand_dims(width, axis=-1)
+        
     label = tf.concat([pos, cos, sin, width], axis=-1)
 
     return img, label
