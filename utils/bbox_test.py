@@ -48,9 +48,9 @@ for i in pbar:
     gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
     a = gtbbs.to_array()
     a = np.array(a)
+    print(a.shape)
     a = tf.convert_to_tensor(a)
     gtbbs = grasp.GraspRectangles.load_from_tensor(a)
-
 
     # GET center position
     center = gtbbs.center
@@ -75,7 +75,7 @@ for i in pbar:
     img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
     img.zoom(zoom_factor)
     img.resize((output_size, output_size))
-    # img.normalise()
+    img.normalise()
     
 
     # Depth
