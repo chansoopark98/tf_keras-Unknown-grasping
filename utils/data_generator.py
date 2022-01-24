@@ -30,6 +30,7 @@ class DatasetGenerate:
         return train_data, number_train
 
 
+
 def preprocess(sample):
     rgb = sample['rgb']
     depth = sample['depth']
@@ -70,6 +71,7 @@ def augment(rgb, depth, box, output_size):
     # get rgb, depth, box
     rgb_img = image.Image.from_tensor(rgb)
     depth_img = image.DepthImage.from_tensor(depth)
+    depth_img.inpaint()
     gtbbs = grasp.GraspRectangles.load_from_tensor(box)
     
     center, left, top = _get_crop_attrs(gtbbs=gtbbs, output_size=output_size)
@@ -100,6 +102,7 @@ def augment(rgb, depth, box, output_size):
 
     rgb_img = tf.convert_to_tensor(rgb_img, tf.float32)
     depth_img = tf.convert_to_tensor(depth_img, tf.float32)
+    depth_img = tf.expand_dims(depth_img, axis=-1)
     img = tf.concat([rgb_img, depth_img], axis=-1)
 
     pos = tf.convert_to_tensor(pos_img, tf.float32)

@@ -3,6 +3,7 @@ import os
 from imageio import imread, imsave, imwrite
 from tqdm import tqdm
 import shutil
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 from utils.dataset_processing import grasp, image
@@ -36,6 +37,11 @@ rows=2
 cols=4
 dataset = CornellDataset(file_path='./datasets/')
 pbar = tqdm(range(dataset.length))
+
+rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
+rot = random.choice(rotations)
+zoom_factor = np.random.uniform(0.5, 1.0)
+
 for i in pbar:
     # bbox
     bbox = dataset.grasp_files[i]
@@ -53,7 +59,7 @@ for i in pbar:
     # get bbox
     gtbbs.rotate(rot, center)
     gtbbs.offset((-top, -left))
-    # gtbbs.zoom(zoom, (output_size // 2, output_size // 2)) TODO
+    gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2)) 
     pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
     width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
     cos = np.cos(2 * ang_img)
@@ -67,9 +73,8 @@ for i in pbar:
     img = image.Image.from_tensor(img)
     img.rotate(rot, center)
     img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
-    img.zoom(1.0)
+    img.zoom(zoom_factor)
     img.resize((output_size, output_size))
-    # img.rotate(rot, center)
     # img.normalise()
     
 
@@ -77,10 +82,11 @@ for i in pbar:
     depth = image.DepthImage.from_tiff(dataset.depth_files[i])
     depth_img = tf.convert_to_tensor(depth)
     depth_img = image.DepthImage.from_tensor(depth_img)
+    depth_img.inpaint()
     depth_img.rotate(rot, center)
     depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
     depth_img.normalise()
-    depth_img.zoom(1.0)
+    depth_img.zoom(zoom_factor)
     depth_img.resize((output_size, output_size))
 
     fig = plt.figure()

@@ -34,22 +34,22 @@ def post_processing(q_img, cos_img, sin_img, width_img):
     ang_img = tf.math.atan2(sin_img, cos_img) / 2.0
     width_img = width_img * 150.0
     # tfa.image.gaussian_filter2d()
-    # q_img = gaussian(q_img, 2.0, preserve_range=True)
-    q_img = tfa.image.gaussian_filter2d(image=q_img, sigma=2.0)
+    q_img = gaussian(q_img, 2.0, preserve_range=True)
+    # q_img = tfa.image.gaussian_filter2d(image=q_img, sigma=2.0)
 
-    # ang_img = gaussian(ang_img, 2.0, preserve_range=True)
-    ang_img = tfa.image.gaussian_filter2d(image=ang_img, sigma=2.0)
+    ang_img = gaussian(ang_img.numpy(), 2.0, preserve_range=True)
+    # ang_img = tfa.image.gaussian_filter2d(image=ang_img, sigma=2.0)
 
-    # width_img = gaussian(width_img, 1.0, preserve_range=True)
-    width_img = tfa.image.gaussian_filter2d(image=width_img, sigma=1.0)
+    width_img = gaussian(width_img, 1.0, preserve_range=True)
+    # width_img = tfa.image.gaussian_filter2d(image=width_img, sigma=1.0)
 
     return q_img, ang_img, width_img
 
 
 def calculate_iou_match(grasp_q, grasp_angle, ground_truth_bbs, no_grasps=1, grasp_width=None, threshold=0.25):
-    grasp_q = grasp_q.numpy()
-    grasp_angle = grasp_angle.numpy()
-    grasp_width = grasp_width.numpy()
+    # grasp_q = grasp_q.numpy()
+    # grasp_angle = grasp_angle.numpy()
+    # grasp_width = grasp_width.numpy()
 
     if not isinstance(ground_truth_bbs, grasp.GraspRectangles):
         gt_bbs = grasp.GraspRectangles.load_from_array(ground_truth_bbs.numpy())
@@ -73,7 +73,13 @@ def poly_decay(lr=3e-4, max_epochs=100, warmup=False):
     max_epochs = max_epochs - 5 if warmup else max_epochs
 
 def decay(current_lr, current_epochs, epochs):
-    lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
+    # lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
+    if current_epochs <= 30:
+        lrate = 0.001
+    elif current_epochs <= 100:
+        lrate = 0.0001
+    elif current_epochs <= 200:
+        lrate = 0.00001
     return lrate
 
 
@@ -138,24 +144,9 @@ model = tf.keras.Model(model_input, model_output)
 loss = Loss(use_aux=False)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
-if MIXED_PRECISION:
-    optimizer = mixed_precision.aschedules.PolynomialDecay(initial_learning_rate=base_lr,
-                                                          decay_steps=EPOCHS,
-                                                          end_learning_rate=base_lr*0.1, power=0.9)
-
-polyDecay = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=base_lr,
-                                                          decay_steps=EPOCHS,
-                                                          end_learning_rate=0.0001, power=0.9)
-
-lr_scheduler = tf.keras.callbacks.LearningRateScheduler(polyDecay,verbose=1)
-
-checkpoint_val_loss = ModelCheckpoint(CHECKPOINT_DIR + '_' + SAVE_MODEL_NAME + '_best_loss.h5',
-                                      monitor='val_loss', save_best_only=True, save_weights_only=True, verbose=1)
-tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR, write_graph=True, write_images=True)
-
-callback = [checkpoint_val_loss,  tensorboard, lr_scheduler]
 
 model.compile(optimizer=optimizer, loss=loss.loss)
+model.summary()
 # model.load_weights(SAVE_WEIGHTS_DIR+'/'+'23.h5')
 
 loss_name = ['total', 'pos', 'cos', 'sin', 'width']
@@ -191,8 +182,8 @@ for epoch in range(EPOCHS):
             
             # batch_input = tf.concat([batch_input, input_stack], axis=0)
             # batch_label = tf.concat([batch_label, label_stack], axis=0)
-        batch_input = tf.convert_to_tensor(batch_input)
-        batch_label = tf.convert_to_tensor(batch_label)
+        batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
+        batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
         batch_loss = model.train_on_batch(batch_input, batch_label)
         # batch_loss = tf.reduce_mean(batch_loss)
         pbar.set_description("Epoch : %d Total loss: %f lr: %f" % (epoch, batch_loss, lr))

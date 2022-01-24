@@ -207,9 +207,9 @@ class GraspRectangles:
         """
         points = [gr.points for gr in self.grs]
         
-        return tf.cast(tf.reduce_mean(tf.experimental.numpy.vstack(points),axis=0, keepdims=False), tf.int32)
+        # return tf.cast(tf.reduce_mean(tf.experimental.numpy.vstack(points),axis=0, keepdims=False), tf.int32)
         
-        # return np.mean(np.vstack(points), axis=0).astype(np.int)
+        return np.mean(np.vstack(points), axis=0).astype(np.int)
 
 
 class GraspRectangle:
