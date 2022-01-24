@@ -3,6 +3,7 @@ import time
 import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import tensorflow_addons as tfa
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from tqdm import tqdm
@@ -13,7 +14,7 @@ from utils.utils.dataset_processing import grasp, image
 from utils.data_generator import augment
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
-
+from skimage.filters import gaussian
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
@@ -27,6 +28,21 @@ def write_log(callback, names, logs, batch_no):
         callback.writer.add_summary(summary, batch_no)
         callback.writer.flush()
 
+def post_processing(q_img, cos_img, sin_img, width_img):
+    # q_img = tf.squeeze(q_img)
+    ang_img = tf.math.atan2(sin_img, cos_img) / 2.0
+    width_img = width_img * 150.0
+    # tfa.image.gaussian_filter2d()
+    # q_img = gaussian(q_img, 2.0, preserve_range=True)
+    q_img = tfa.image.gaussian_filter2d(image=q_img, sigma=2.0)
+
+    # ang_img = gaussian(ang_img, 2.0, preserve_range=True)
+    ang_img = tfa.image.gaussian_filter2d(image=ang_img, sigma=2.0)
+
+    # width_img = gaussian(width_img, 1.0, preserve_range=True)
+    width_img = tfa.image.gaussian_filter2d(image=width_img, sigma=1.0)
+
+    return q_img, ang_img, width_img
 
 tf.keras.backend.clear_session()
 
@@ -111,9 +127,12 @@ model.compile(
     loss=loss.loss
 )
 
+model.load_weights(SAVE_WEIGHTS_DIR +'/' +'23.h5')
+
+
 model.summary()
 loss_name = ['total', 'pos', 'cos', 'sin', 'width']
-rows = 2
+rows = 3
 cols = 4
 for epoch in range(EPOCHS):
     pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
@@ -170,6 +189,7 @@ for epoch in range(EPOCHS):
         
         preds = model.predict(batch_input)
         
+        
 
         fig = plt.figure()
         for i in range(len(batch_input)):
@@ -212,8 +232,33 @@ for epoch in range(EPOCHS):
             ax0.imshow(batch_label[i, :, :, 3])
             ax0.set_title('gt_width')
             ax0.axis("off")
+            
+            q_img, ang_img, width_img = post_processing(q_img=preds[i, :, :, 0],
+                                                        cos_img=preds[i, :, :, 1],
+                                                        sin_img=preds[i, :, :, 2],
+                                                        width_img=preds[i, :, :, 3])
 
-            # plt.show()
+            ax0 = fig.add_subplot(rows, cols, 9)
+            ax0.imshow(q_img)
+            ax0.set_title('q_img')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 10)
+            ax0.imshow(ang_img)
+            ax0.set_title('ang_img')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 11)
+            ax0.imshow(width_img)
+            ax0.set_title('width_img')
+            ax0.axis("off")
+            img = batch_input[i, :, :, :3]
+            
+            # img = tf.clip_by_value(img, 0., 1.)
+            ax0 = fig.add_subplot(rows, cols, 12)
+            ax0.imshow(img)
+            ax0.set_title('input')
+            ax0.axis("off")
 
             plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
             index +=1

@@ -6,3 +6,4 @@ scikit-image
 tensorflow_datasets
 torch
 opencv-python
+tensorflow_addons

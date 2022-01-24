@@ -32,8 +32,8 @@ os.makedirs(box_path, exist_ok=True)
 
 output_size = 224
 rot = 0
-rows=1
-cols=6
+rows=2
+cols=4
 dataset = CornellDataset(file_path='./datasets/')
 pbar = tqdm(range(dataset.length))
 for i in pbar:
@@ -74,8 +74,8 @@ for i in pbar:
     
 
     # Depth
-    depth_img = image.DepthImage.from_tiff(dataset.depth_files[i])
-    depth_img = tf.convert_to_tensor(depth_img)
+    depth = image.DepthImage.from_tiff(dataset.depth_files[i])
+    depth_img = tf.convert_to_tensor(depth)
     depth_img = image.DepthImage.from_tensor(depth_img)
     depth_img.rotate(rot, center)
     depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
@@ -113,6 +113,17 @@ for i in pbar:
     ax3 = fig.add_subplot(rows, cols, 6)
     ax3.imshow(depth_img)
     ax3.set_title('depth_img')
+    ax3.axis("off")
+    
+    rgb = imread(rgb)
+    ax3 = fig.add_subplot(rows, cols, 7)
+    ax3.imshow(rgb)
+    ax3.set_title('original_rgb')
+    ax3.axis("off")
+
+    ax3 = fig.add_subplot(rows, cols, 8)
+    ax3.imshow(depth)
+    ax3.set_title('original_depth')
     ax3.axis("off")
 
 
