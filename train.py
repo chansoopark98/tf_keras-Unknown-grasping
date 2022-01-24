@@ -1,5 +1,6 @@
 import argparse
 import time
+import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
@@ -12,6 +13,7 @@ from utils.utils.dataset_processing import grasp, image
 from utils.data_generator import augment
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
+
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
@@ -31,7 +33,7 @@ tf.keras.backend.clear_session()
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=8)
 parser.add_argument("--epoch",          type=int,   help="에폭 설정", default=100)
-parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.01)
+parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.001)
 parser.add_argument("--weight_decay",   type=float, help="Weight Decay 설정", default=0.0005)
 parser.add_argument("--optimizer",     type=str,   help="Optimizer", default='adam')
 parser.add_argument("--model_name",     type=str,   help="저장될 모델 이름",
@@ -39,6 +41,7 @@ parser.add_argument("--model_name",     type=str,   help="저장될 모델 이�
 parser.add_argument("--dataset_dir",    type=str,   help="데이터셋 다운로드 디렉토리 설정", default='./datasets/')
 parser.add_argument("--checkpoint_dir", type=str,   help="모델 저장 디렉토리 설정", default='./checkpoints/')
 parser.add_argument("--tensorboard_dir",  type=str,   help="텐서보드 저장 경로", default='tensorboard')
+parser.add_argument("--save_weight",  type=str,   help="가중치 저장 경로", default='./checkpoints')
 parser.add_argument("--use_weightDecay",  type=bool,  help="weightDecay 사용 유무", default=False)
 parser.add_argument("--load_weight",  type=bool,  help="가중치 로드", default=False)
 parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=False)
@@ -54,6 +57,7 @@ SAVE_MODEL_NAME = args.model_name
 DATASET_DIR = args.dataset_dir
 CHECKPOINT_DIR = args.checkpoint_dir
 TENSORBOARD_DIR = args.tensorboard_dir
+SAVE_WEIGHTS_DIR = args.save_weight
 IMAGE_SIZE = (224, 224, 4)
 USE_WEIGHT_DECAY = args.use_weightDecay
 LOAD_WEIGHT = args.load_weight
@@ -63,8 +67,8 @@ if MIXED_PRECISION:
     policy = mixed_precision.Policy('mixed_float16', loss_scale=1024)
     mixed_precision.set_policy(policy)
 
-
-train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
+os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
+train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[:95%]', with_info=True)
 number_train = meta_data.splits['train'].num_examples
 steps_per_epoch = number_train // BATCH_SIZE
 train_data = train_data.shuffle(1024)
@@ -72,7 +76,12 @@ train_data = train_data.padded_batch(BATCH_SIZE)
 # train_data = train_data.repeat()
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-
+test_data, test_meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[95%:]', with_info=True)
+number_test = test_meta_data.splits['train'].num_examples
+test_steps_per_epoch = number_test // BATCH_SIZE
+test_data = test_data.padded_batch(BATCH_SIZE)
+# train_data = train_data.repeat()
+# test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
 
 model_input, model_output = model_builder(input_shape=IMAGE_SIZE)
 model = tf.keras.Model(model_input, model_output)
@@ -104,6 +113,8 @@ model.compile(
 
 model.summary()
 loss_name = ['total', 'pos', 'cos', 'sin', 'width']
+rows = 2
+cols = 4
 for epoch in range(EPOCHS):
     pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
     batch_counter = 0
@@ -137,3 +148,72 @@ for epoch in range(EPOCHS):
         pbar.set_description("Epoch : %d Total loss: %f" % (epoch, batch_loss))
         # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
                                         # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))
+
+    model.save_weights(SAVE_WEIGHTS_DIR +'/' + str(epoch) + '.h5', overwrite=True)
+    TEST_SAVE_EPCOHS_DIR = SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'
+    os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
+    # validation
+    for sample in test_data:
+        rgb = sample['rgb']
+        depth = sample['depth']
+        box = sample['box']
+
+        batch_input = []
+        batch_label = []
+        for i in range(len(rgb)):
+            input_stack, label_stack = augment(rgb=rgb[i], depth=depth[i], box=box[i])
+            batch_input.append(input_stack)
+            batch_label.append(label_stack)
+
+        batch_input = tf.convert_to_tensor(batch_input)
+        batch_label = tf.convert_to_tensor(batch_label)
+        
+        preds = model.predict(batch_input)
+        
+
+        fig = plt.figure()
+        for i in range(len(batch_input)):
+            ax0 = fig.add_subplot(rows, cols, 1)
+            ax0.imshow(preds[i, :, :, 0])
+            ax0.set_title('pred_pos')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 2)
+            ax0.imshow(preds[i, :, :, 1])
+            ax0.set_title('pred_cos')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 3)
+            ax0.imshow(preds[i, :, :, 2])
+            ax0.set_title('pred_sin')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 4)
+            ax0.imshow(preds[i, :, :, 3])
+            ax0.set_title('pred_width')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 5)
+            ax0.imshow(batch_label[i, :, :, 0])
+            ax0.set_title('gt_pos')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 6)
+            ax0.imshow(batch_label[i, :, :, 1])
+            ax0.set_title('gt_cos')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 7)
+            ax0.imshow(batch_label[i, :, :, 2])
+            ax0.set_title('gt_sin')
+            ax0.axis("off")
+
+            ax0 = fig.add_subplot(rows, cols, 8)
+            ax0.imshow(batch_label[i, :, :, 3])
+            ax0.set_title('gt_width')
+            ax0.axis("off")
+
+            # plt.show()
+
+            plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
+            index +=1

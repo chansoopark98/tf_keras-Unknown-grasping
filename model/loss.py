@@ -17,7 +17,8 @@ class Loss:
         pred_sin = y_pred[:, :, :, 2]
         pred_width = y_pred[:, :, :, 3]
 
-        pos_loss = BinaryCrossentropy(from_logits=False, name='pos_bce')(y_true=y_pos, y_pred=pred_pos)
+        # pos_loss = BinaryCrossentropy(from_logits=False, name='pos_bce')(y_true=y_pos, y_pred=pred_pos)
+        pos_loss = Huber(name='pose_smoothl1')(y_true=y_pos, y_pred=pred_pos)
         cos_loss = Huber(name='cos_smoothl1')(y_true=y_cos, y_pred=pred_cos)
         sin_loss = Huber(name='sin_smoothl1')(y_true=y_sin, y_pred=pred_sin)
         width_loss = Huber(name='width_smoothl1')(y_true=y_width, y_pred=pred_width)

@@ -5,6 +5,7 @@ __pycache__/
 /datasets
 /cornell_output
 /tfds
+/checkpoints
 
 # C extensions
 *.so
