@@ -302,4 +302,4 @@ for epoch in range(EPOCHS):
                 plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
                 index +=1
         
-        print("IoU", results['correct']+1 / (results['correct'] + results['failed']))
+        print("IoU", results['correct'] / (results['correct'] + results['failed']))

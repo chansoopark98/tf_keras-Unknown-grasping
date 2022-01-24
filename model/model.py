@@ -33,7 +33,8 @@ def res_block(x_input, filters, kernel_size, strides, padding,
 
     return Add(name=prefix+'_res_add')([x, x_input])
 
-def classifier(x, output_filters, kernel_size, activation, prefix):
+def classifier(x, output_filters, kernel_size, activation, use_dropout, prefix):
+    x = Dropout(use_dropout)(x)
     x = Conv2D(filters=output_filters, kernel_size=(kernel_size, kernel_size), strides=(1, 1),
                 activation=activation, kernel_initializer='he_normal', padding='same', name=prefix+'_classifier')(x)
     return x
@@ -56,10 +57,11 @@ def grconvnet(input_shape, channel_size=32 , output_channels=1):
     x = deconv3x3(x, filters=channel_size, kernel_size=4, strides=2, padding='same', prefix='deconv2')
     x = deconv3x3(x, filters=channel_size, kernel_size=9, strides=1, padding='same', prefix='deconv1')
 
-    pos = classifier(x, output_filters=output_channels, kernel_size=3, activation='sigmoid', prefix='pos')
-    cos = classifier(x, output_filters=output_channels, kernel_size=3, activation='tanh', prefix='cos')
-    sin = classifier(x, output_filters=output_channels, kernel_size=3, activation='tanh', prefix='sin')
-    width = classifier(x, output_filters=output_channels, kernel_size=3, activation='relu', prefix='width')
+
+    pos = classifier(x, output_filters=output_channels, kernel_size=2, activation=None, use_dropout=0.1, prefix='pos')
+    cos = classifier(x, output_filters=output_channels, kernel_size=2, activation=None, use_dropout=0.1, prefix='cos')
+    sin = classifier(x, output_filters=output_channels, kernel_size=2, activation=None, use_dropout=0.1, prefix='sin')
+    width = classifier(x, output_filters=output_channels, kernel_size=2, activation=None, use_dropout=0.1, prefix='width')
 
     labels = tf.concat([pos, cos, sin, width], axis=-1)
     return inputs, labels
