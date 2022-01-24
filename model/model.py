@@ -29,7 +29,7 @@ def res_block(x_input, filters, kernel_size, strides, padding,
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_res_bn_1')(x)
     x = Activation(activation, name=prefix+'_activation_1')(x)
 
-    x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_res_conv2d_2')(x_input)
+    x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), strides=(strides, strides), kernel_initializer='he_normal', padding=padding, name=prefix+'_res_conv2d_2')(x)
     x = BatchNormalization(momentum=bn_momentum, epsilon=bn_epsilon, name=prefix+'_res_bn_2')(x)
 
     return Add(name=prefix+'_res_add')([x, x_input])
@@ -55,9 +55,9 @@ def grconvnet(input_shape, channel_size=32 , output_channels=1):
     x = res_block(x_input=x, filters=channel_size * 8, kernel_size=3, strides=1, padding='same', prefix='res_4')
     x = res_block(x_input=x, filters=channel_size * 8, kernel_size=3, strides=1, padding='same', prefix='res_5')
     
-    x = deconv3x3(x, filters=channel_size *4, kernel_size=3, strides=2, padding='same', use_bn=True, prefix='deconv4')
-    x = deconv3x3(x, filters=channel_size *2, kernel_size=3, strides=2, padding='same', use_bn=True, prefix='deconv3')
-    x = deconv3x3(x, filters=channel_size, kernel_size=3, strides=2, padding='same', use_bn=True,prefix='deconv2')
+    x = deconv3x3(x, filters=channel_size *4, kernel_size=4, strides=2, padding='same', use_bn=True, prefix='deconv4')
+    x = deconv3x3(x, filters=channel_size *2, kernel_size=4, strides=2, padding='same', use_bn=True, prefix='deconv3')
+    x = deconv3x3(x, filters=channel_size, kernel_size=4, strides=2, padding='same', use_bn=True,prefix='deconv2')
 
 
     pos = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='pos')
