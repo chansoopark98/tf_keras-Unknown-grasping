@@ -71,7 +71,7 @@ def augment(rgb, depth, box, output_size):
     # get rgb, depth, box
     rgb_img = image.Image.from_tensor(rgb)
     depth_img = image.DepthImage.from_tensor(depth)
-    depth_img.inpaint()
+    # depth_img.inpaint()
     gtbbs = grasp.GraspRectangles.load_from_tensor(box)
     
     center, left, top = _get_crop_attrs(gtbbs=gtbbs, output_size=output_size)
@@ -79,7 +79,7 @@ def augment(rgb, depth, box, output_size):
     # augment rgb
     rgb_img.rotate(rot, center)
     rgb_img.crop((top, left), (tf.math.minimum(480, top + output_size), tf.math.minimum(640, left + output_size)))
-    rgb_img.zoom(zoom_factor)
+    # rgb_img.zoom(zoom_factor)
     rgb_img.resize((output_size, output_size))
     rgb_img.normalise()
     
@@ -87,13 +87,13 @@ def augment(rgb, depth, box, output_size):
     depth_img.rotate(rot, center)
     depth_img.crop((top, left), (tf.math.minimum(480, top + output_size), tf.math.minimum(640, left + output_size)))
     depth_img.normalise()
-    depth_img.zoom(zoom_factor)
+    # depth_img.zoom(zoom_factor)
     depth_img.resize((output_size, output_size))
 
     # augment gtbbs
     gtbbs.rotate(rot, center)
     gtbbs.offset((-top, -left))
-    gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2))
+    # gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2))
 
     pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
     width_img = tf.clip_by_value(width_img, 0.0, output_size /2 ) / (output_size / 2)
@@ -102,7 +102,7 @@ def augment(rgb, depth, box, output_size):
 
     rgb_img = tf.convert_to_tensor(rgb_img, tf.float32)
     depth_img = tf.convert_to_tensor(depth_img, tf.float32)
-    depth_img = tf.expand_dims(depth_img, axis=-1)
+    # depth_img = tf.expand_dims(depth_img, axis=-1)
     img = tf.concat([rgb_img, depth_img], axis=-1)
 
     pos = tf.convert_to_tensor(pos_img, tf.float32)

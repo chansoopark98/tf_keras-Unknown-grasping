@@ -30,14 +30,15 @@ def write_log(callback, names, logs, batch_no):
         callback.writer.flush()
 
 def post_processing(q_img, cos_img, sin_img, width_img):
-    # q_img = tf.squeeze(q_img)
-    ang_img = tf.math.atan2(sin_img, cos_img) / 2.0
-    width_img = width_img * 150.0
+    q_img = np.squeeze(q_img)
+    ang_img = np.squeeze(tf.math.atan2(sin_img, cos_img) / 2.0)
+    width_img = np.squeeze(width_img) * 150.0
+
     # tfa.image.gaussian_filter2d()
     q_img = gaussian(q_img, 2.0, preserve_range=True)
     # q_img = tfa.image.gaussian_filter2d(image=q_img, sigma=2.0)
 
-    ang_img = gaussian(ang_img.numpy(), 2.0, preserve_range=True)
+    ang_img = gaussian(ang_img, 2.0, preserve_range=True)
     # ang_img = tfa.image.gaussian_filter2d(image=ang_img, sigma=2.0)
 
     width_img = gaussian(width_img, 1.0, preserve_range=True)
@@ -86,9 +87,9 @@ def decay(current_lr, current_epochs, epochs):
 tf.keras.backend.clear_session()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=16)
+parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=8)
 parser.add_argument("--epoch",          type=int,   help="에폭 설정", default=200)
-parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.01)
+parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.001)
 parser.add_argument("--weight_decay",   type=float, help="Weight Decay 설정", default=0.0005)
 parser.add_argument("--optimizer",     type=str,   help="Optimizer", default='adam')
 parser.add_argument("--model_name",     type=str,   help="저장될 모델 이름",
@@ -176,7 +177,6 @@ for epoch in range(EPOCHS):
         batch_label = []
         for i in range(len(rgb)):
             input_stack, label_stack, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
-
             batch_input.append(input_stack)
             batch_label.append(label_stack)
             
@@ -263,7 +263,12 @@ for epoch in range(EPOCHS):
                                                             cos_img=preds[i, :, :, 1],
                                                             sin_img=preds[i, :, :, 2],
                                                             width_img=preds[i, :, :, 3])
-                s = calculate_iou_match(grasp_q=q_img, grasp_angle=ang_img, ground_truth_bbs=batch_gtbbs[i], no_grasps=1, grasp_width= width_img, threshold=0.25)
+                s = calculate_iou_match(grasp_q = q_img,
+                                        grasp_angle = ang_img,
+                                        ground_truth_bbs = batch_gtbbs[i],
+                                        no_grasps = 1,
+                                        grasp_width = width_img,
+                                        threshold=0.25)
                 if s:
                     results['correct'] += 1
                 else:

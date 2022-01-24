@@ -411,6 +411,7 @@ class Grasp:
         max_iou = 0
         for gr in grs:
             iou = self_gr.iou(gr)
+            
             max_iou = max(max_iou, iou)
         return max_iou
 
