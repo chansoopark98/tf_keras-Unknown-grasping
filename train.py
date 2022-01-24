@@ -1,5 +1,4 @@
 import argparse
-from pickle import NONE
 import time
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -11,9 +10,21 @@ from model.loss import Loss
 import matplotlib.pyplot as plt
 from utils.utils.dataset_processing import grasp, image
 from utils.data_generator import augment
+from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import TensorBoard
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
+
+def write_log(callback, names, logs, batch_no):
+    for name in zip(names, logs):
+        summary = tf.Summary()
+        summary_value = summary.value.add()
+        summary_value.simple_value = logs
+        summary_value.tag = name
+        callback.writer.add_summary(summary, batch_no)
+        callback.writer.flush()
+
 
 tf.keras.backend.clear_session()
 
@@ -58,7 +69,9 @@ number_train = meta_data.splits['train'].num_examples
 steps_per_epoch = number_train // BATCH_SIZE
 train_data = train_data.shuffle(1024)
 train_data = train_data.padded_batch(BATCH_SIZE)
+# train_data = train_data.repeat()
 train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+
 
 
 model_input, model_output = model_builder(input_shape=IMAGE_SIZE)
@@ -68,17 +81,19 @@ loss = Loss(use_aux=False)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
 if MIXED_PRECISION:
-    optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')
+    optimizer = mixed_precision.aschedules.PolynomialDecay(initial_learning_rate=base_lr,
+                                                          decay_steps=EPOCHS,
+                                                          end_learning_rate=base_lr*0.1, power=0.9)
+
+polyDecay = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=base_lr,
+                                                          decay_steps=EPOCHS,
+                                                          end_learning_rate=0.0001, power=0.9)
+
+lr_scheduler = tf.keras.callbacks.LearningRateScheduler(polyDecay,verbose=1)
 
 checkpoint_val_loss = ModelCheckpoint(CHECKPOINT_DIR + '_' + SAVE_MODEL_NAME + '_best_loss.h5',
                                       monitor='val_loss', save_best_only=True, save_weights_only=True, verbose=1)
 tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR, write_graph=True, write_images=True)
-
-polyDecay = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=base_lr,
-                                                          decay_steps=EPOCHS,
-                                                          end_learning_rate=base_lr*0.1, power=0.9)
-
-lr_scheduler = tf.keras.callbacks.LearningRateScheduler(polyDecay,verbose=1)
 
 callback = [checkpoint_val_loss,  tensorboard, lr_scheduler]
 
@@ -88,6 +103,7 @@ model.compile(
 )
 
 model.summary()
+loss_name = ['total', 'pos', 'cos', 'sin', 'width']
 for epoch in range(EPOCHS):
     pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
     batch_counter = 0
@@ -99,14 +115,14 @@ for epoch in range(EPOCHS):
         # ---------------------
         #  Train Discriminator
         # ---------------------
-        # img = tf.cast(features['image'], tf.float32)
+        # img = tf.cast(features['image']def write_log(callback, names, logs, batch_no):
         rgb = sample['rgb']
         depth = sample['depth']
         box = sample['box']
 
         batch_input = []
         batch_label = []
-        for i in range(BATCH_SIZE):
+        for i in range(len(rgb)):
             input_stack, label_stack = augment(rgb=rgb[i], depth=depth[i], box=box[i])
 
             batch_input.append(input_stack)
@@ -114,10 +130,10 @@ for epoch in range(EPOCHS):
             
             # batch_input = tf.concat([batch_input, input_stack], axis=0)
             # batch_label = tf.concat([batch_label, label_stack], axis=0)
-        batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
-        batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
-
+        batch_input = tf.convert_to_tensor(batch_input)
+        batch_label = tf.convert_to_tensor(batch_label)
         batch_loss = model.train_on_batch(batch_input, batch_label)
+        # batch_loss = tf.reduce_mean(batch_loss)
         pbar.set_description("Epoch : %d Total loss: %f" % (epoch, batch_loss))
         # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
                                         # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))
