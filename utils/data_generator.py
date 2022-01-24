@@ -30,9 +30,6 @@ class DatasetGenerate:
         return train_data, number_train
 
 
-batch_size = 1
-output_size = 224
-
 def preprocess(sample):
     rgb = sample['rgb']
     depth = sample['depth']
@@ -43,7 +40,7 @@ def preprocess(sample):
 def body(gtbbs):
     return [gtbbs.points]
 
-def _get_crop_attrs(gtbbs):
+def _get_crop_attrs(gtbbs, output_size):
     # center = gtbbs.center
     
     """
@@ -64,7 +61,7 @@ def _get_crop_attrs(gtbbs):
     return center, left, top
 
 
-def augment(rgb, depth, box):
+def augment(rgb, depth, box, output_size):
     # get random value
     rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
     rot = random.choice(rotations)
@@ -75,7 +72,7 @@ def augment(rgb, depth, box):
     depth_img = image.DepthImage.from_tensor(depth)
     gtbbs = grasp.GraspRectangles.load_from_tensor(box)
     
-    center, left, top = _get_crop_attrs(gtbbs=gtbbs)
+    center, left, top = _get_crop_attrs(gtbbs=gtbbs, output_size=output_size)
 
     # augment rgb
     rgb_img.rotate(rot, center)
@@ -122,15 +119,4 @@ def augment(rgb, depth, box):
         
     label = tf.concat([pos, cos, sin, width], axis=-1)
 
-    return img, label
-
-def prepare_dataset(dataset):
-    dataset = dataset.map(preprocess, num_parallel_calls=AUTO)
-    dataset = dataset.map(augment)
-    dataset = dataset.shuffle(1024)
-    dataset = dataset.padded_batch(batch_size)
-    dataset = dataset.prefetch(AUTO)
-    dataset = dataset.repeat()
-
-    return dataset
-    
+    return img, label, gtbbs

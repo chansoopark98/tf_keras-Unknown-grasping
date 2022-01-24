@@ -30,7 +30,7 @@ os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
-output_size = 224
+output_size = 512
 rot = 0
 rows=2
 cols=4

@@ -4,6 +4,7 @@ import os
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_addons as tfa
+import numpy as np
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from tqdm import tqdm
@@ -43,6 +44,38 @@ def post_processing(q_img, cos_img, sin_img, width_img):
     width_img = tfa.image.gaussian_filter2d(image=width_img, sigma=1.0)
 
     return q_img, ang_img, width_img
+
+
+def calculate_iou_match(grasp_q, grasp_angle, ground_truth_bbs, no_grasps=1, grasp_width=None, threshold=0.25):
+    grasp_q = grasp_q.numpy()
+    grasp_angle = grasp_angle.numpy()
+    grasp_width = grasp_width.numpy()
+
+    if not isinstance(ground_truth_bbs, grasp.GraspRectangles):
+        gt_bbs = grasp.GraspRectangles.load_from_array(ground_truth_bbs.numpy())
+    else:
+        gt_bbs = ground_truth_bbs
+    gs = grasp.detect_grasps(grasp_q, grasp_angle, width_img=grasp_width, no_grasps=no_grasps)
+    for g in gs:
+        if g.max_iou(gt_bbs) > threshold:
+            return True
+    else:
+        return False
+
+def poly_decay(lr=3e-4, max_epochs=100, warmup=False):
+    """
+    poly decay.
+    :param lr: initial lr
+    :param max_epochs: max epochs
+    :param warmup: warm up or not
+    :return: current lr
+    """
+    max_epochs = max_epochs - 5 if warmup else max_epochs
+
+def decay(current_lr, current_epochs, epochs):
+    lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
+    return lrate
+
 
 tf.keras.backend.clear_session()
 
@@ -122,15 +155,9 @@ tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR, write_grap
 
 callback = [checkpoint_val_loss,  tensorboard, lr_scheduler]
 
-model.compile(
-    optimizer=optimizer,
-    loss=loss.loss
-)
+model.compile(optimizer=optimizer, loss=loss.loss)
+# model.load_weights(SAVE_WEIGHTS_DIR+'/'+'23.h5')
 
-model.load_weights(SAVE_WEIGHTS_DIR +'/' +'23.h5')
-
-
-model.summary()
 loss_name = ['total', 'pos', 'cos', 'sin', 'width']
 rows = 3
 cols = 4
@@ -140,12 +167,16 @@ for epoch in range(EPOCHS):
     toggle = True
     dis_res = 0
     index = 0
+    results = {
+        'correct': 0,
+        'failed': 0}
+    lr = decay(base_lr, current_epochs=epoch, epochs=EPOCHS)
+    K.set_value(model.optimizer.learning_rate, lr)
     for sample in pbar:
         batch_counter += 1
         # ---------------------
-        #  Train Discriminator
+        #  Train
         # ---------------------
-        # img = tf.cast(features['image']def write_log(callback, names, logs, batch_no):
         rgb = sample['rgb']
         depth = sample['depth']
         box = sample['box']
@@ -153,7 +184,7 @@ for epoch in range(EPOCHS):
         batch_input = []
         batch_label = []
         for i in range(len(rgb)):
-            input_stack, label_stack = augment(rgb=rgb[i], depth=depth[i], box=box[i])
+            input_stack, label_stack, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
 
             batch_input.append(input_stack)
             batch_label.append(label_stack)
@@ -164,101 +195,111 @@ for epoch in range(EPOCHS):
         batch_label = tf.convert_to_tensor(batch_label)
         batch_loss = model.train_on_batch(batch_input, batch_label)
         # batch_loss = tf.reduce_mean(batch_loss)
-        pbar.set_description("Epoch : %d Total loss: %f" % (epoch, batch_loss))
+        pbar.set_description("Epoch : %d Total loss: %f lr: %f" % (epoch, batch_loss, lr))
         # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
                                         # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))
+
 
     model.save_weights(SAVE_WEIGHTS_DIR +'/' + str(epoch) + '.h5', overwrite=True)
     TEST_SAVE_EPCOHS_DIR = SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'
     os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
     # validation
-    for sample in test_data:
-        rgb = sample['rgb']
-        depth = sample['depth']
-        box = sample['box']
 
-        batch_input = []
-        batch_label = []
-        for i in range(len(rgb)):
-            input_stack, label_stack = augment(rgb=rgb[i], depth=depth[i], box=box[i])
-            batch_input.append(input_stack)
-            batch_label.append(label_stack)
+    if epoch % 5 == 0:
+        for sample in test_data:
+            rgb = sample['rgb']
+            depth = sample['depth']
+            box = sample['box']
 
-        batch_input = tf.convert_to_tensor(batch_input)
-        batch_label = tf.convert_to_tensor(batch_label)
-        
-        preds = model.predict(batch_input)
-        
-        
-
-        fig = plt.figure()
-        for i in range(len(batch_input)):
-            ax0 = fig.add_subplot(rows, cols, 1)
-            ax0.imshow(preds[i, :, :, 0])
-            ax0.set_title('pred_pos')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 2)
-            ax0.imshow(preds[i, :, :, 1])
-            ax0.set_title('pred_cos')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 3)
-            ax0.imshow(preds[i, :, :, 2])
-            ax0.set_title('pred_sin')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 4)
-            ax0.imshow(preds[i, :, :, 3])
-            ax0.set_title('pred_width')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 5)
-            ax0.imshow(batch_label[i, :, :, 0])
-            ax0.set_title('gt_pos')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 6)
-            ax0.imshow(batch_label[i, :, :, 1])
-            ax0.set_title('gt_cos')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 7)
-            ax0.imshow(batch_label[i, :, :, 2])
-            ax0.set_title('gt_sin')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 8)
-            ax0.imshow(batch_label[i, :, :, 3])
-            ax0.set_title('gt_width')
-            ax0.axis("off")
+            batch_input = []
+            batch_label = []
+            batch_gtbbs = [] 
+            for i in range(len(rgb)):
+                input_stack, label_stack, gtbbs = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
+                batch_input.append(input_stack)
+                batch_label.append(label_stack)
+                batch_gtbbs.append(gtbbs)
+            batch_input = tf.convert_to_tensor(batch_input)
+            batch_label = tf.convert_to_tensor(batch_label)
             
-            q_img, ang_img, width_img = post_processing(q_img=preds[i, :, :, 0],
-                                                        cos_img=preds[i, :, :, 1],
-                                                        sin_img=preds[i, :, :, 2],
-                                                        width_img=preds[i, :, :, 3])
-
-            ax0 = fig.add_subplot(rows, cols, 9)
-            ax0.imshow(q_img)
-            ax0.set_title('q_img')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 10)
-            ax0.imshow(ang_img)
-            ax0.set_title('ang_img')
-            ax0.axis("off")
-
-            ax0 = fig.add_subplot(rows, cols, 11)
-            ax0.imshow(width_img)
-            ax0.set_title('width_img')
-            ax0.axis("off")
-            img = batch_input[i, :, :, :3]
+            preds = model.predict(batch_input)
             
-            # img = tf.clip_by_value(img, 0., 1.)
-            ax0 = fig.add_subplot(rows, cols, 12)
-            ax0.imshow(img)
-            ax0.set_title('input')
-            ax0.axis("off")
+            
+            
+            fig = plt.figure()
+            for i in range(len(batch_input)):
+                ax0 = fig.add_subplot(rows, cols, 1)
+                ax0.imshow(preds[i, :, :, 0])
+                ax0.set_title('pred_pos')
+                ax0.axis("off")
 
-            plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
-            index +=1
+                ax0 = fig.add_subplot(rows, cols, 2)
+                ax0.imshow(preds[i, :, :, 1])
+                ax0.set_title('pred_cos')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 3)
+                ax0.imshow(preds[i, :, :, 2])
+                ax0.set_title('pred_sin')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 4)
+                ax0.imshow(preds[i, :, :, 3])
+                ax0.set_title('pred_width')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 5)
+                ax0.imshow(batch_label[i, :, :, 0])
+                ax0.set_title('gt_pos')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 6)
+                ax0.imshow(batch_label[i, :, :, 1])
+                ax0.set_title('gt_cos')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 7)
+                ax0.imshow(batch_label[i, :, :, 2])
+                ax0.set_title('gt_sin')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 8)
+                ax0.imshow(batch_label[i, :, :, 3])
+                ax0.set_title('gt_width')
+                ax0.axis("off")
+                
+                q_img, ang_img, width_img = post_processing(q_img=preds[i, :, :, 0],
+                                                            cos_img=preds[i, :, :, 1],
+                                                            sin_img=preds[i, :, :, 2],
+                                                            width_img=preds[i, :, :, 3])
+                s = calculate_iou_match(grasp_q=q_img, grasp_angle=ang_img, ground_truth_bbs=batch_gtbbs[i], no_grasps=1, grasp_width= width_img, threshold=0.25)
+                if s:
+                    results['correct'] += 1
+                else:
+                    results['failed'] += 1
+
+                ax0 = fig.add_subplot(rows, cols, 9)
+                ax0.imshow(q_img)
+                ax0.set_title('q_img')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 10)
+                ax0.imshow(ang_img)
+                ax0.set_title('ang_img')
+                ax0.axis("off")
+
+                ax0 = fig.add_subplot(rows, cols, 11)
+                ax0.imshow(width_img)
+                ax0.set_title('width_img')
+                ax0.axis("off")
+
+                img = batch_input[i, :, :, :3]
+                ax0 = fig.add_subplot(rows, cols, 12)
+                ax0.imshow(tf.clip_by_value(tf.cast(img+0.5, tf.float32), 0., 1.))
+                ax0.set_title('input')
+                ax0.axis("off")
+
+                plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
+                index +=1
+        
+        print("IoU", results['correct']+1 / (results['correct'] + results['failed']))
