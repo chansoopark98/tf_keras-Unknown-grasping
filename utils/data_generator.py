@@ -74,7 +74,8 @@ def augment(rgb, depth, box, output_size):
     depth_img = image.DepthImage.from_tensor(depth)
     gtbbs = grasp.GraspRectangles.load_from_tensor(box)
     
-    center, left, top = _get_crop_attrs(gtbbs=gtbbs, output_size=output_size)
+    img_shape = rgb_img.shape
+    center, left, top = _get_crop_attrs(gtbbs=gtbbs, output_size=output_size, img_shape=img_shape)
 
     # augment gtbbs
     gtbbs.rotate(rot, center)

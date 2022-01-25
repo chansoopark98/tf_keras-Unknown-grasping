@@ -7,6 +7,7 @@ import tensorflow_addons as tfa
 import numpy as np
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
+from torch import le
 from tqdm import tqdm
 from model.model_builder import model_builder
 from model.loss import Loss
@@ -17,7 +18,8 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
 from skimage.filters import gaussian
 from utils.utils.dataset_processing import evaluation
-
+from utils.data_generator_test import CornellDataset, JacquardDataset    
+import random
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
 
@@ -31,7 +33,9 @@ def write_log(callback, names, logs, batch_no):
         callback.writer.flush()
 
 def post_processing(q_img, cos_img, sin_img, width_img):
+
     q_img = np.squeeze(q_img)
+    
     ang_img = np.squeeze(tf.math.atan2(sin_img, cos_img) / 2.0)
     width_img = np.squeeze(width_img) * 150.0
 
@@ -75,13 +79,13 @@ def poly_decay(lr=3e-4, max_epochs=100, warmup=False):
     max_epochs = max_epochs - 5 if warmup else max_epochs
 
 def decay(current_lr, current_epochs, epochs):
-    # lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
-    if current_epochs <= 30:
-        lrate = 0.001
-    elif current_epochs <= 100:
-        lrate = 0.0001
-    elif current_epochs <= 200:
-        lrate = 0.00001
+    lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
+    # if current_epochs <= 30:
+    #     lrate = 0.001
+    # elif current_epochs <= 100:
+    #     lrate = 0.0001
+    # elif current_epochs <= 200:
+    #     lrate = 0.00001
     return lrate
 
 
@@ -125,24 +129,30 @@ if MIXED_PRECISION:
     mixed_precision.set_policy(policy)
 
 os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
-train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
-jacquard, j_meta_data = tfds.load('Jacquard', data_dir='./tfds/', split='train', with_info=True)
+# train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
+# jacquard, j_meta_data = tfds.load('Jacquard', data_dir='./tfds/', split='train', with_info=True)
 
-train_data = train_data.concatenate(jacquard)
-number_train = meta_data.splits['train'].num_examples + j_meta_data.splits['train'].num_examples
+# number_train = meta_data.splits['train'].num_examples
 
-steps_per_epoch = number_train // BATCH_SIZE
-train_data = train_data.shuffle(1024)
-train_data = train_data.padded_batch(BATCH_SIZE)
-# train_data = train_data.repeat()
-train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
+# steps_per_epoch = number_train // BATCH_SIZE
+# train_data = train_data.shuffle(1024)
+# train_data = train_data.padded_batch(BATCH_SIZE)
+# train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
 
-test_data, test_meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[95%:]', with_info=True)
-number_test = test_meta_data.splits['train'].num_examples
-test_steps_per_epoch = number_test // BATCH_SIZE
-test_data = test_data.padded_batch(BATCH_SIZE)
-# train_data = train_data.repeat()
-# test_data = test_data.prefetch(tf.data.experimental.AUTOTUNE)
+# test_data, test_meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[95%:]', with_info=True)
+# number_test = test_meta_data.splits['train'].num_examples
+# test_steps_per_epoch = number_test // BATCH_SIZE
+# test_data = test_data.padded_batch(BATCH_SIZE)
+
+output_size = IMAGE_SIZE[0]
+mode = 'cornell'
+cornell_path = './datasets/Cornell/'
+jacquard_path = './datasets/Samples/'
+dataset = CornellDataset(file_path=cornell_path, output_size=output_size)
+# testset = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+
+steps_per_epoch = dataset.length // BATCH_SIZE
+
 
 model_input, model_output = model_builder(input_shape=IMAGE_SIZE)
 model = tf.keras.Model(model_input, model_output)
@@ -158,8 +168,10 @@ model.summary()
 loss_name = ['total', 'pos', 'cos', 'sin', 'width']
 rows = 3
 cols = 4
+validation_length = 16
+
+
 for epoch in range(EPOCHS):
-    pbar = tqdm(train_data, total=steps_per_epoch, desc='Batch', leave=True, disable=False)
     batch_counter = 0
     toggle = True
     dis_res = 0
@@ -169,14 +181,16 @@ for epoch in range(EPOCHS):
         'failed': 0}
     lr = decay(base_lr, current_epochs=epoch, epochs=EPOCHS)
     K.set_value(model.optimizer.learning_rate, lr)
-    for sample in pbar:
+    batch_idx = list(range(dataset.length))
+    batch_idx = batch_idx[validation_length:]
+    validation_idx = batch_idx[:validation_length]
+    pbar = tqdm(range(len(batch_idx)//BATCH_SIZE), total=len(batch_idx)//BATCH_SIZE, desc='Batch', leave=True, disable=False)    
+    for j in pbar:
         batch_counter += 1
         # ---------------------
         #  Train
         # ---------------------
-        rgb = sample['rgb']
-        depth = sample['depth']
-        box = sample['box']
+        
 
         batch_input = []
         batch_label = []
@@ -184,16 +198,39 @@ for epoch in range(EPOCHS):
         cos_stack =[]
         sin_stack =[]
         width_stack =[]
-        for i in range(len(rgb)):
-            # input_stack, label_stack, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
-            input_stack, pos, cos, sin, width, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
-            batch_input.append(input_stack)
-            pos_stack.append(pos)
+        
+
+        for i in range(BATCH_SIZE):
+            rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
+            rot = random.choice(rotations)
+            zoom_factor = np.random.uniform(0.5, 1.0)
+            
+            rnd_range = random.choice(batch_idx)
+            iter_idx = rnd_range
+            batch_idx.remove(rnd_range)
+            
+            
+            # get bbox
+            bbs = dataset.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            # get depth
+            depth_img = dataset.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            # get img
+            rgb_img = dataset.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            
+            pos_img, ang_img, width_img = bbs.draw((output_size, output_size))
+            width_img = np.clip(width_img, 0.0, output_size / 2) / (output_size / 2)
+
+            cos = np.cos(2 * ang_img)
+            sin = np.sin(2 * ang_img)
+
+            depth_img = tf.expand_dims(depth_img, axis=-1)
+            rgbd = tf.concat([rgb_img, depth_img], axis=-1)
+
+            batch_input.append(rgbd)
+            pos_stack.append(pos_img)
             cos_stack.append(cos)
             sin_stack.append(sin)
-            width_stack.append(width)
-            # batch_label.append(label_stack)
-            
+            width_stack.append(width_img)
             
             
         batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
@@ -212,30 +249,55 @@ for epoch in range(EPOCHS):
 
     model.save_weights(SAVE_WEIGHTS_DIR +'/' + str(epoch) + '.h5', overwrite=True)
     TEST_SAVE_EPCOHS_DIR = SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'
-    os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
+    
     # validation
 
     if epoch % 3 == 0:
-        for sample in test_data:
-            rgb = sample['rgb']
-            depth = sample['depth']
-            box = sample['box']
-
+        os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
+        # validation_idx = list(range(dataset.length-validation_length+1, dataset.length))
+        
+        for sample in range(len(validation_idx)//BATCH_SIZE):
             batch_input = []
             batch_label = []
+            batch_gtbbs = []
             pos_stack =[]
             cos_stack =[]
             sin_stack =[]
             width_stack =[]
-            batch_gtbbs = [] 
-            for i in range(len(rgb)):
-                input_stack, pos, cos, sin, width, gtbbs = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
-                batch_input.append(input_stack)
-                pos_stack.append(pos)
+
+            
+
+            for i in range(BATCH_SIZE):
+                rot = 0
+                zoom_factor = 1.0
+                
+                rnd_range = random.choice(validation_idx)
+                iter_idx = rnd_range
+                validation_idx.remove(rnd_range)
+                
+                # get bbox
+                bbs = dataset.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                # get depth
+                depth_img = dataset.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                # get img
+                rgb_img = dataset.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                
+                pos_img, ang_img, width_img = bbs.draw((output_size, output_size))
+                width_img = np.clip(width_img, 0.0, output_size / 2) / (output_size / 2)
+
+                cos = np.cos(2 * ang_img)
+                sin = np.sin(2 * ang_img)
+
+                depth_img = tf.expand_dims(depth_img, axis=-1)
+                rgbd = tf.concat([rgb_img, depth_img], axis=-1)
+
+                batch_input.append(rgbd)
+                pos_stack.append(pos_img)
                 cos_stack.append(cos)
                 sin_stack.append(sin)
-                width_stack.append(width)
-                batch_gtbbs.append(gtbbs)
+                width_stack.append(width_img)
+                batch_gtbbs.append(bbs)
+
             batch_input = tf.convert_to_tensor(batch_input)
             # batch_label = tf.convert_to_tensor(batch_label)
             pos_stack = tf.convert_to_tensor(pos_stack, dtype=tf.float32)
@@ -291,6 +353,7 @@ for epoch in range(EPOCHS):
                                                             cos_img=preds[1][i, :, :],
                                                             sin_img=preds[2][i, :, :],
                                                             width_img=preds[3][i, :, :])
+
                 s = evaluation.calculate_iou_match(grasp_q = q_img,
                                         grasp_angle = ang_img,
                                         ground_truth_bbs = batch_gtbbs[i],

@@ -99,7 +99,7 @@ class Jacquard(tfds.core.GeneratorBasedBuilder):
 
   
     for i in range(len(img_files)):
-      gtbbs = grasp.GraspRectangles.load_from_jacquard_file(box_files[i], scale=1)
+      gtbbs = grasp.GraspRectangles.load_from_jacquard_file(box_files[i], scale=224/1024.)
       gtbbs = gtbbs.to_array()
       bbs = np.array(gtbbs)
       bbs = tf.convert_to_tensor(gtbbs, tf.float32)
