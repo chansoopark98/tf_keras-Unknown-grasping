@@ -82,7 +82,7 @@ def augment(rgb, depth, box, output_size):
     gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2))
 
     pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
-    width_img = tf.clip_by_value(width_img, 0.0, output_size /2 ) / (output_size / 2)
+    width_img = tf.clip_by_value(width_img, 0.0, output_size / 2 ) / (output_size / 2)
     cos = tf.math.cos(2 * ang_img)
     sin = tf.math.sin(2 * ang_img)
 
@@ -108,21 +108,13 @@ def augment(rgb, depth, box, output_size):
     depth_img = np.expand_dims(depth_img, axis=-1)
     img = tf.concat([rgb_img, depth_img], axis=-1)
 
-    # pos_img = tf.convert_to_tensor(pos_img, tf.float32)
     pos_img = tf.expand_dims(pos_img, axis=-1)
 
-    # cos = tf.cast(cos, tf.float32)
-    # cos = tf.convert_to_tensor(cos, tf.float32)
     cos = tf.expand_dims(cos, axis=-1)
 
-    # sin = tf.cast(sin, tf.float32)
-    # sin = tf.convert_to_tensor(sin, tf.float32)
     sin = tf.expand_dims(sin, axis=-1)
 
-    # width_img = tf.cast(width_img, tf.float32)
-    # width_img = tf.convert_to_tensor(width_img, tf.float32)
     width_img = tf.expand_dims(width_img, axis=-1)
         
-    # label = tf.concat([pos, cos, sin, width], axis=-1)
 
     return img, pos_img, cos, sin, width_img, gtbbs

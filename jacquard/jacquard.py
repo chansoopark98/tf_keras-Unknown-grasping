@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import io
 import tifffile as tiff
+from torch import from_file
 # import .utils.dataset_processing.grasp as grasp
 # import .utils.dataset_processing.image as image
 from utils.dataset_processing import grasp, image
@@ -39,7 +40,7 @@ _CITATION = """
 """
 GLOBAL_SHAPE = None
 
-class CornellGrasp(tfds.core.GeneratorBasedBuilder):
+class Jacquard(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for cornell_grasp dataset."""
 
   VERSION = tfds.core.Version('1.0.0')
@@ -59,7 +60,7 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
         features=tfds.features.FeaturesDict({
             # These are the features of your dataset like images, labels ...
             'rgb': tfds.features.Image(shape=(None, None, 3)),
-            'depth': tfds.features.Tensor(shape=(480, 640, 1), dtype=tf.float32),
+            'depth': tfds.features.Tensor(shape=(1024, 1024, 1), dtype=tf.float32),
             'box': tfds.features.Tensor(shape=(None, 4, 2), dtype=tf.float32),
         }),
         # If there's a common (input, target) tuple from the
@@ -74,7 +75,7 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
   def _split_generators(self, dl_manager: tfds.download.DownloadManager):
     """Returns SplitGenerators."""
     # TODO(cornell_grasp): Downloads the data and defines the splits
-    archive_path = dl_manager.manual_dir / 'data.zip'
+    archive_path = dl_manager.manual_dir / 'jacquard.zip'
     extracted_path = dl_manager.extract(archive_path)
 
     # TODO(cornell_grasp): Returns the Dict[split names, Iterator[Key, Example]]
@@ -98,7 +99,7 @@ class CornellGrasp(tfds.core.GeneratorBasedBuilder):
 
   
     for i in range(len(img_files)):
-      gtbbs = grasp.GraspRectangles.load_from_cornell_file(box_files[i])
+      gtbbs = grasp.GraspRectangles.load_from_jacquard_file(box_files[i], scale=224/1024.0)
       gtbbs = gtbbs.to_array()
       bbs = np.array(gtbbs)
       bbs = tf.convert_to_tensor(gtbbs, tf.float32)

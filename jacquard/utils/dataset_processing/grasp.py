@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.draw import polygon
 from skimage.feature import peak_local_max
-import tensorflow as tf
+
 
 def _gr_text_to_no(l, offset=(0, 0)):
     """
@@ -86,22 +86,6 @@ class GraspRectangles:
                 except ValueError:
                     # Some files contain weird values.
                     continue
-        return cls(grs)     
-    
-    @classmethod
-    def load_from_tensor(cls, tensor):
-        tensor = tensor.numpy()
-        grs = []
-        for i in range(len(tensor)):
-            grs.append(GraspRectangle(tensor[i]))
-        return cls(grs)
-
-    @classmethod
-    def load_from_tfdata(cls, tensor):
-        tensor = tensor
-        grs = []
-        for i in range(len(tensor)):
-            grs.append(GraspRectangle(tensor[i]))
         return cls(grs)
 
     @classmethod
@@ -206,9 +190,6 @@ class GraspRectangles:
         :return: float, mean centre of all GraspRectangles
         """
         points = [gr.points for gr in self.grs]
-        
-        # return tf.cast(tf.reduce_mean(tf.experimental.numpy.vstack(points),axis=0, keepdims=False), tf.int32)
-        
         return np.mean(np.vstack(points), axis=0).astype(np.int)
 
 
@@ -411,7 +392,6 @@ class Grasp:
         max_iou = 0
         for gr in grs:
             iou = self_gr.iou(gr)
-            
             max_iou = max(max_iou, iou)
         return max_iou
 

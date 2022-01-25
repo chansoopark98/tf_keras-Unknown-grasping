@@ -13,16 +13,29 @@ from utils.dataset_processing import evaluation
 # from utils.dataset_processing import grasp, image
 
 class CornellDataset:
-    def __init__(self, file_path):
+    def __init__(self, file_path, mode):
         """-
         :param file_path: Cornell Dataset directory
         """
-        self.grasp_files = glob.glob(os.path.join(file_path, '*', 'pcd*cpos.txt'))
-        self.grasp_files.sort()
-        self.length = len(self.grasp_files)
+        self.mode = mode
+        if self.mode == 'cornell':
+            self.grasp_files = glob.glob(os.path.join(file_path, '*', 'pcd*cpos.txt'))
+            self.grasp_files.sort()
+            self.length = len(self.grasp_files)
 
-        self.depth_files = [f.replace('cpos.txt', 'd.tiff') for f in self.grasp_files] 
-        self.rgb_files = [f.replace('d.tiff', 'r.png') for f in self.depth_files]
+            self.depth_files = [f.replace('cpos.txt', 'd.tiff') for f in self.grasp_files] 
+            self.rgb_files = [f.replace('d.tiff', 'r.png') for f in self.depth_files]
+        
+        else:
+            self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
+            self.grasp_files.sort()
+            self.length = len(self.grasp_files)
+
+            if self.length == 0:
+                raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
+
+            self.depth_files = [f.replace('grasps.txt', 'perfect_depth.tiff') for f in self.grasp_files]
+            self.rgb_files = [f.replace('perfect_depth.tiff', 'RGB.png') for f in self.depth_files]
 
 def write_log(callback, names, logs, batch_no):
     for name in zip(names, logs):
@@ -49,8 +62,17 @@ def post_processing(q_img, cos_img, sin_img, width_img):
     # width_img = tfa.image.gaussian_filter2d(image=width_img, sigma=1.0)
 
     return q_img, ang_img, width_img
-        
-output_path = './cornell_output/'
+
+mode = 'jacquard'
+# mode = 'cornell'
+if mode == 'cornell':
+    path = './datasets/Cornell/'
+    output_path = './cornell_output/'
+else:
+    path = './datasets/Samples/'
+    output_path = './jacquard_output/'
+    
+    
 rgb_path = output_path + 'rgb/'
 depth_path = output_path + 'depth/'
 box_path = output_path + 'box/'
@@ -60,10 +82,9 @@ os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
 output_size = 224
-rot = 0
 rows=3
 cols=4
-dataset = CornellDataset(file_path='./datasets/')
+dataset = CornellDataset(file_path=path, mode=mode)
 pbar = tqdm(range(dataset.length))
 
 rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
@@ -71,52 +92,109 @@ rot = random.choice(rotations)
 zoom_factor = np.random.uniform(0.5, 1.0)
 
 for i in pbar:
-    # bbox
-    bbox = dataset.grasp_files[i]
-    gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
-    a = gtbbs.to_array()
-    a = np.array(a)
-    print(a.shape)
-    a = tf.convert_to_tensor(a)
-    gtbbs = grasp.GraspRectangles.load_from_tensor(a)
+    if dataset.mode == 'cornell':
+        # bbox
+        bbox = dataset.grasp_files[i]
+        gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
+        a = gtbbs.to_array()
+        a = np.array(a)
+        print(a.shape)
+        a = tf.convert_to_tensor(a)
+        gtbbs = grasp.GraspRectangles.load_from_tensor(a)
 
-    # GET center position
-    center = gtbbs.center
-    left = max(0, min(center[1] - output_size // 2, 640 - output_size))
-    top = max(0, min(center[0] - output_size // 2, 480 - output_size))
-    # get bbox
-    gtbbs.rotate(rot, center)
-    gtbbs.offset((-top, -left))
-    gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2)) 
-    pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
-    width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
-    cos = np.cos(2 * ang_img)
-    sin = np.sin(2 * ang_img)
+        # GET center position
+        center = gtbbs.center
+        # c = output_size //2
+        left = max(0, min(center[1] - output_size // 2, 640 - output_size))
+        top = max(0, min(center[0] - output_size // 2, 480 - output_size))
+        # get bbox
+        # gtbbs.rotate(rot, center)
+        # gtbbs.rotate(rot, (c, c))
+        gtbbs.offset((-top, -left))
+        # gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2)) 
+        pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
+        width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
+        cos = np.cos(2 * ang_img)
+        sin = np.sin(2 * ang_img)
 
 
-    # RGB
-    rgb = dataset.rgb_files[i]
-    img = image.Image.from_file(rgb)
-    img = tf.convert_to_tensor(img)
-    img = image.Image.from_tensor(img)
-    img.rotate(rot, center)
-    img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
-    img.zoom(zoom_factor)
-    img.resize((output_size, output_size))
-    img.normalise()
-    
-    
+        # RGB
+        rgb = dataset.rgb_files[i]
+        img = image.Image.from_file(rgb)
+        img = tf.convert_to_tensor(img)
+        img = image.Image.from_tensor(img)
+        # img.rotate(rot, center)
+        # img.rotate(rot)
+        # img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        # img.zoom(zoom_factor)
+        img.resize((output_size, output_size))
+        img.normalise()
+        
+        
 
-    # Depth
-    depth = image.DepthImage.from_tiff(dataset.depth_files[i])
-    depth_img = tf.convert_to_tensor(depth)
-    depth_img = image.DepthImage.from_tensor(depth_img)
-    depth_img.inpaint()
-    depth_img.rotate(rot, center)
-    depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
-    depth_img.normalise()
-    depth_img.zoom(zoom_factor)
-    depth_img.resize((output_size, output_size))
+        # Depth
+        depth = image.DepthImage.from_tiff(dataset.depth_files[i])
+        depth_img = tf.convert_to_tensor(depth)
+        depth_img = image.DepthImage.from_tensor(depth_img)
+        depth_img.inpaint()
+        # depth_img.rotate(rot, center)
+        # depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        depth_img.normalise()
+        # depth_img.zoom(zoom_factor)
+        depth_img.resize((output_size, output_size))
+
+    else:
+        # bbox
+        bbox = dataset.grasp_files[i]
+        gtbbs = grasp.GraspRectangles.load_from_jacquard_file(bbox, output_size/1024.0)
+        print(gtbbs)
+        # a = gtbbs.to_array()
+        # a = np.array(a)
+        # print(a.shape)
+        # a = tf.convert_to_tensor(a)
+        # gtbbs = grasp.GraspRectangles.load_from_tensor(a)
+
+        # GET center position
+        
+        # gtbbs *= (output_size / 1024.0)
+        center = gtbbs.center
+        c = center[0]
+        left = max(0, min(center[1] - output_size // 2, 640 - output_size))
+        top = max(0, min(center[0] - output_size // 2, 480 - output_size))
+        # get bbox
+        # c = output_size // 2
+        gtbbs.rotate(rot, (c, c))
+        gtbbs.offset((-top, -left))
+        gtbbs.zoom(zoom_factor, (c, c)) 
+        pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
+        width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
+        cos = np.cos(2 * ang_img)
+        sin = np.sin(2 * ang_img)
+
+
+        # RGB
+        rgb = dataset.rgb_files[i]
+        img = image.Image.from_file(rgb)
+        img = tf.convert_to_tensor(img)
+        img = image.Image.from_tensor(img)
+        img.rotate(rot)
+        # img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        img.zoom(zoom_factor)
+        img.resize((output_size, output_size))
+        img.normalise()
+        
+        
+
+        # Depth
+        depth = image.DepthImage.from_tiff(dataset.depth_files[i])
+        depth_img = tf.convert_to_tensor(depth)
+        depth_img = image.DepthImage.from_tensor(depth_img)
+        depth_img.inpaint()
+        depth_img.rotate(rot)
+        # depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        depth_img.normalise()
+        depth_img.zoom(zoom_factor)
+        depth_img.resize((output_size, output_size))
 
     fig = plt.figure()
 
