@@ -16,6 +16,7 @@ from utils.data_generator import augment
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import TensorBoard
 from skimage.filters import gaussian
+from utils.utils.dataset_processing import evaluation
 
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
@@ -124,7 +125,7 @@ if MIXED_PRECISION:
     mixed_precision.set_policy(policy)
 
 os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
-train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[:95%]', with_info=True)
+train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
 number_train = meta_data.splits['train'].num_examples
 steps_per_epoch = number_train // BATCH_SIZE
 train_data = train_data.shuffle(1024)
@@ -146,7 +147,7 @@ loss = Loss(use_aux=False)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
 
-model.compile(optimizer=optimizer, loss=loss.loss)
+model.compile(optimizer=optimizer, loss=loss.test_loss)
 model.summary()
 # model.load_weights(SAVE_WEIGHTS_DIR+'/'+'23.h5')
 
@@ -175,18 +176,32 @@ for epoch in range(EPOCHS):
 
         batch_input = []
         batch_label = []
+        pos_stack =[]
+        cos_stack =[]
+        sin_stack =[]
+        width_stack =[]
         for i in range(len(rgb)):
-            input_stack, label_stack, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
+            # input_stack, label_stack, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
+            input_stack, pos, cos, sin, width, _ = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
             batch_input.append(input_stack)
-            batch_label.append(label_stack)
+            pos_stack.append(pos)
+            cos_stack.append(cos)
+            sin_stack.append(sin)
+            width_stack.append(width)
+            # batch_label.append(label_stack)
             
-            # batch_input = tf.concat([batch_input, input_stack], axis=0)
-            # batch_label = tf.concat([batch_label, label_stack], axis=0)
+            
+            
         batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
-        batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
-        batch_loss = model.train_on_batch(batch_input, batch_label)
+        # batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
+        pos_stack = tf.convert_to_tensor(pos_stack, dtype=tf.float32)
+        cos_stack = tf.convert_to_tensor(cos_stack, dtype=tf.float32)
+        sin_stack = tf.convert_to_tensor(sin_stack, dtype=tf.float32)
+        width_stack = tf.convert_to_tensor(width_stack, dtype=tf.float32)
+
+        batch_loss = model.train_on_batch(batch_input, [pos_stack, cos_stack, sin_stack, width_stack])
         # batch_loss = tf.reduce_mean(batch_loss)
-        pbar.set_description("Epoch : %d Total loss: %f lr: %f" % (epoch, batch_loss, lr))
+        pbar.set_description("Epoch : %d lr: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, lr, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
         # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
                                         # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))
 
@@ -196,7 +211,7 @@ for epoch in range(EPOCHS):
     os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
     # validation
 
-    if epoch % 5 == 0:
+    if epoch % 3 == 0:
         for sample in test_data:
             rgb = sample['rgb']
             depth = sample['depth']
@@ -204,66 +219,75 @@ for epoch in range(EPOCHS):
 
             batch_input = []
             batch_label = []
+            pos_stack =[]
+            cos_stack =[]
+            sin_stack =[]
+            width_stack =[]
             batch_gtbbs = [] 
             for i in range(len(rgb)):
-                input_stack, label_stack, gtbbs = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
+                input_stack, pos, cos, sin, width, gtbbs = augment(rgb=rgb[i], depth=depth[i], box=box[i], output_size=IMAGE_SIZE[0])
                 batch_input.append(input_stack)
-                batch_label.append(label_stack)
+                pos_stack.append(pos)
+                cos_stack.append(cos)
+                sin_stack.append(sin)
+                width_stack.append(width)
                 batch_gtbbs.append(gtbbs)
             batch_input = tf.convert_to_tensor(batch_input)
-            batch_label = tf.convert_to_tensor(batch_label)
+            # batch_label = tf.convert_to_tensor(batch_label)
+            pos_stack = tf.convert_to_tensor(pos_stack, dtype=tf.float32)
+            cos_stack = tf.convert_to_tensor(cos_stack, dtype=tf.float32)
+            sin_stack = tf.convert_to_tensor(sin_stack, dtype=tf.float32)
+            width_stack = tf.convert_to_tensor(width_stack, dtype=tf.float32)
             
-            preds = model.predict(batch_input)
-            
-            
+            preds = model.predict(batch_input)          
             
             fig = plt.figure()
             for i in range(len(batch_input)):
                 ax0 = fig.add_subplot(rows, cols, 1)
-                ax0.imshow(preds[i, :, :, 0])
+                ax0.imshow(preds[0][i, :, :])
                 ax0.set_title('pred_pos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 2)
-                ax0.imshow(preds[i, :, :, 1])
+                ax0.imshow(preds[1][i, :, :])
                 ax0.set_title('pred_cos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 3)
-                ax0.imshow(preds[i, :, :, 2])
+                ax0.imshow(preds[2][i, :, :])
                 ax0.set_title('pred_sin')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 4)
-                ax0.imshow(preds[i, :, :, 3])
+                ax0.imshow(preds[3][i, :, :])
                 ax0.set_title('pred_width')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 5)
-                ax0.imshow(batch_label[i, :, :, 0])
+                ax0.imshow(pos_stack[i])
                 ax0.set_title('gt_pos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 6)
-                ax0.imshow(batch_label[i, :, :, 1])
+                ax0.imshow(cos_stack[i])
                 ax0.set_title('gt_cos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 7)
-                ax0.imshow(batch_label[i, :, :, 2])
+                ax0.imshow(sin_stack[i])
                 ax0.set_title('gt_sin')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 8)
-                ax0.imshow(batch_label[i, :, :, 3])
+                ax0.imshow(width_stack[i])
                 ax0.set_title('gt_width')
                 ax0.axis("off")
                 
-                q_img, ang_img, width_img = post_processing(q_img=preds[i, :, :, 0],
-                                                            cos_img=preds[i, :, :, 1],
-                                                            sin_img=preds[i, :, :, 2],
-                                                            width_img=preds[i, :, :, 3])
-                s = calculate_iou_match(grasp_q = q_img,
+                q_img, ang_img, width_img = post_processing(q_img=preds[0][i, :, :],
+                                                            cos_img=preds[1][i, :, :],
+                                                            sin_img=preds[2][i, :, :],
+                                                            width_img=preds[3][i, :, :])
+                s = evaluation.calculate_iou_match(grasp_q = q_img,
                                         grasp_angle = ang_img,
                                         ground_truth_bbs = batch_gtbbs[i],
                                         no_grasps = 1,

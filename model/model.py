@@ -64,7 +64,7 @@ def grconvnet(input_shape, channel_size=32 , output_channels=1):
     sin = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='sin')
     width = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='width')
 
-    outputs = tf.concat([pos, cos, sin, width], axis=-1)
-    return inputs, outputs
+    # outputs = tf.concat([pos, cos, sin, width], axis=-1)
+    return inputs, [pos, cos, sin, width]
 
 
