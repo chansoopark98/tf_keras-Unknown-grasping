@@ -7,3 +7,4 @@ tensorflow_datasets
 torch
 opencv-python
 tensorflow_addons
+imagecodecs

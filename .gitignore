@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 /datasets
 /cornell_output
+/jacquard_output
 /tfds
 /checkpoints
 

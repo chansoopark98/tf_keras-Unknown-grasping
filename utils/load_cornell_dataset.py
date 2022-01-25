@@ -15,8 +15,22 @@ class CornellDataset:
 
         self.depth_files = [f.replace('cpos.txt', 'd.tiff') for f in self.grasp_files] 
         self.rgb_files = [f.replace('d.tiff', 'r.png') for f in self.depth_files]
+
+class JacquardDataset:
+    def __init__(self, file_path):
+
+        self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
+        self.grasp_files.sort()
+        self.length = len(self.grasp_files)
+
+        if self.length == 0:
+            raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
+
+        self.depth_files = [f.replace('grasps.txt', 'perfect_depth.tiff') for f in self.grasp_files]
+        self.rgb_files = [f.replace('perfect_depth.tiff', 'RGB.png') for f in self.depth_files]
         
-output_path = './cornell_output/'
+# output_path = './cornell_output/'
+output_path = './jacquard_output/'
 rgb_path = output_path + 'rgb/'
 depth_path = output_path + 'depth/'
 box_path = output_path + 'box/'
@@ -25,9 +39,11 @@ os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
-dataset = CornellDataset(file_path='./datasets/')
+# dataset = CornellDataset(file_path='./datasets/')
+dataset = JacquardDataset(file_path='./datasets/Samples/')
 pbar = tqdm(range(dataset.length))
 for i in pbar:
+    print(dataset.rgb_files[i])
     rgb = imread(dataset.rgb_files[i])
     imsave(rgb_path + str(i) + '_rgb.png', rgb)
     depth = imread(dataset.depth_files[i])
