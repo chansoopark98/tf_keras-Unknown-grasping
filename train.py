@@ -128,16 +128,6 @@ os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
 train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
 jacquard, j_meta_data = tfds.load('Jacquard', data_dir='./tfds/', split='train', with_info=True)
 
-jacquard = jacquard.shuffle(1024)
-jacquard = jacquard.padded_batch(BATCH_SIZE)
-# train_data = train_data.repeat()
-jacquard = jacquard.prefetch(tf.data.experimental.AUTOTUNE)
-for sample in jacquard:
-    box = sample['box']
-    print(box[0])
-
-
-
 train_data = train_data.concatenate(jacquard)
 number_train = meta_data.splits['train'].num_examples + j_meta_data.splits['train'].num_examples
 

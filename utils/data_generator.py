@@ -41,7 +41,7 @@ def preprocess(sample):
 def body(gtbbs):
     return [gtbbs.points]
 
-def _get_crop_attrs(gtbbs, output_size):
+def _get_crop_attrs(gtbbs, output_size, img_shape):
     # center = gtbbs.center
     
     """
@@ -57,8 +57,8 @@ def _get_crop_attrs(gtbbs, output_size):
             # np.vstack(points),axis=0, keepdims=False)
     
     center = gtbbs.center
-    left = tf.math.maximum(0, tf.math.minimum(center[1] - output_size // 2, 640 - output_size))
-    top = tf.math.maximum(0, tf.math.minimum(center[0] - output_size // 2, 480 - output_size))
+    left = tf.math.maximum(0, tf.math.minimum(center[1] - output_size // 2, img_shape[1] - output_size))
+    top = tf.math.maximum(0, tf.math.minimum(center[0] - output_size // 2, img_shape[0] - output_size))
     return center, left, top
 
 
