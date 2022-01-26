@@ -11,23 +11,17 @@ class Loss:
         res = tf.where(tf.less(abs_loss, 1.0), square_loss, abs_loss - 0.5)
         return tf.reduce_sum(res, axis=0)
 
-    def loss(self, y_true, y_pred):
-        # y_true = tf.cast(y_true, tf.float32)
-        # y_pred = tf.cast(y_pred, tf.float32)
+    def loss(self, y_true, y_pred):        
         y_pos = y_true[:, :, :, 0]
         y_cos = y_true[:, :, :, 1]
         y_sin = y_true[:, :, :, 2]
         y_width = y_true[:, :, :, 3]
-        print(y_pred.shape)
+
         pred_pos = y_pred[:, :, :, 0]
-        
         pred_cos = y_pred[:, :, :, 1]
-        
         pred_sin = y_pred[:, :, :, 2]
-        
         pred_width = y_pred[:, :, :, 3]
         
-
         # pos_loss = BinaryCrossentropy(from_logits=False, name='pos_bce')(y_true=y_pos, y_pred=pred_pos)
         # pos_loss = Huber(name='pose_smoothl1')(y_true=y_pos, y_pred=pred_pos)
         pos_loss = self.smooth1_l1(y_true=y_pos, y_pred=pred_pos)

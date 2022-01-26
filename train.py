@@ -22,7 +22,6 @@ from utils.data_generator_test import CornellDataset, JacquardDataset
 import random
 import tensorflow_addons as tfa
 
-
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
 
 def write_log(callback, names, logs, batch_no):
@@ -70,24 +69,8 @@ def calculate_iou_match(grasp_q, grasp_angle, ground_truth_bbs, no_grasps=1, gra
     else:
         return False
 
-def poly_decay(lr=3e-4, max_epochs=100, warmup=False):
-    """
-    poly decay.
-    :param lr: initial lr
-    :param max_epochs: max epochs
-    :param warmup: warm up or not
-    :return: current lr
-    """
-    max_epochs = max_epochs - 5 if warmup else max_epochs
-
 def decay(current_lr, current_epochs, epochs):
     lrate = current_lr * (1 - np.power(current_epochs / epochs, 0.9))
-    # if current_epochs <= 30:
-    #     lrate = 0.001
-    # elif current_epochs <= 100:
-    #     lrate = 0.0001
-    # elif current_epochs <= 200:
-    #     lrate = 0.00001
     return lrate
 
 
@@ -131,20 +114,6 @@ if MIXED_PRECISION:
     mixed_precision.set_policy(policy)
 
 os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
-# train_data, meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train', with_info=True)
-# jacquard, j_meta_data = tfds.load('Jacquard', data_dir='./tfds/', split='train', with_info=True)
-
-# number_train = meta_data.splits['train'].num_examples
-
-# steps_per_epoch = number_train // BATCH_SIZE
-# train_data = train_data.shuffle(1024)
-# train_data = train_data.padded_batch(BATCH_SIZE)
-# train_data = train_data.prefetch(tf.data.experimental.AUTOTUNE)
-
-# test_data, test_meta_data = tfds.load('CornellGrasp', data_dir='./tfds/', split='train[95%:]', with_info=True)
-# number_test = test_meta_data.splits['train'].num_examples
-# test_steps_per_epoch = number_test // BATCH_SIZE
-# test_data = test_data.padded_batch(BATCH_SIZE)
 
 output_size = IMAGE_SIZE[0]
 mode = 'cornell'
@@ -172,6 +141,7 @@ loss_name = ['total', 'pos', 'cos', 'sin', 'width']
 rows = 3
 cols = 4
 validation_length = 16
+validation_freq = 3
 
 
 for epoch in range(EPOCHS):
@@ -187,6 +157,7 @@ for epoch in range(EPOCHS):
     batch_idx = list(range(dataset.length))
     batch_idx = batch_idx[validation_length:]
     validation_idx = batch_idx[:validation_length]
+
     pbar = tqdm(range(len(batch_idx)//BATCH_SIZE), total=len(batch_idx)//BATCH_SIZE, desc='Batch', leave=True, disable=False)    
     for j in pbar:
         batch_counter += 1
@@ -244,20 +215,22 @@ for epoch in range(EPOCHS):
         width_stack = tf.convert_to_tensor(width_stack, dtype=tf.float32)
 
         batch_loss = model.train_on_batch(batch_input, [pos_stack, cos_stack, sin_stack, width_stack])
-        # batch_loss = tf.reduce_mean(batch_loss)
-        pbar.set_description("Epoch : %d lr: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, lr, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
-        # pbar.set_description("Epoch : %d Total loss: %f pos loss: %f cos loss: %f sin loss: %f width loss: %f" % (epoch, 
-                                        # batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3], batch_loss[4]))
+
+        total_loss = tf.reduce_sum(batch_loss, axis=0)
+        pbar.set_description("Epoch : %d | lr: %f | Total loss: %f | pos loss: %f | cos loss: %f | sin loss: %f | width loss: %f" 
+                            % (epoch, lr, total_loss, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
 
 
-    model.save_weights(SAVE_WEIGHTS_DIR +'/' + str(epoch) + '.h5', overwrite=True)
-    TEST_SAVE_EPCOHS_DIR = SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'
+    
     
     # validation
+    if epoch % validation_freq == 0:
+        # Save training weight
+        model.save_weights(SAVE_WEIGHTS_DIR +'/' + str(epoch) + '.h5', overwrite=True)
 
-    if epoch % 3 == 0:
+        # Create validation results (per validation frequency)
+        TEST_SAVE_EPCOHS_DIR = SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'
         os.makedirs(TEST_SAVE_EPCOHS_DIR, exist_ok=True)
-        # validation_idx = list(range(dataset.length-validation_length+1, dataset.length))
         
         for sample in range(len(validation_idx)//BATCH_SIZE):
             batch_input = []
@@ -267,8 +240,6 @@ for epoch in range(EPOCHS):
             cos_stack =[]
             sin_stack =[]
             width_stack =[]
-
-            
 
             for i in range(BATCH_SIZE):
                 rot = 0
@@ -301,8 +272,8 @@ for epoch in range(EPOCHS):
                 width_stack.append(width_img)
                 batch_gtbbs.append(bbs)
 
+
             batch_input = tf.convert_to_tensor(batch_input)
-            # batch_label = tf.convert_to_tensor(batch_label)
             pos_stack = tf.convert_to_tensor(pos_stack, dtype=tf.float32)
             cos_stack = tf.convert_to_tensor(cos_stack, dtype=tf.float32)
             sin_stack = tf.convert_to_tensor(sin_stack, dtype=tf.float32)
@@ -310,6 +281,7 @@ for epoch in range(EPOCHS):
             
             preds = model.predict(batch_input)          
             
+            # Draw validation results
             fig = plt.figure()
             for i in range(len(batch_input)):
                 ax0 = fig.add_subplot(rows, cols, 1)
