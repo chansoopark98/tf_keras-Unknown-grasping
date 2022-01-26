@@ -59,10 +59,10 @@ def grconvnet(input_shape, channel_size=32 , output_channels=1):
     x = deconv3x3(x, filters=channel_size, kernel_size=9, strides=1, padding='same', use_bn=True,prefix='deconv2')
 
 
-    pos = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='pos')
-    cos = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='cos')
-    sin = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='sin')
-    width = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.1, prefix='width')
+    pos = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.0, prefix='pos')
+    cos = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.0, prefix='cos')
+    sin = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.0, prefix='sin')
+    width = classifier(x, output_filters=output_channels, kernel_size=3, activation=None, use_dropout=0.0, prefix='width')
 
     # outputs = tf.concat([pos, cos, sin, width], axis=-1)
     return inputs, [pos, cos, sin, width]

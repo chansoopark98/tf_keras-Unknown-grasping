@@ -20,6 +20,8 @@ from skimage.filters import gaussian
 from utils.utils.dataset_processing import evaluation
 from utils.data_generator_test import CornellDataset, JacquardDataset    
 import random
+import tensorflow_addons as tfa
+
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
 
@@ -159,7 +161,8 @@ model = tf.keras.Model(model_input, model_output)
 
 loss = Loss(use_aux=False)
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
+# optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
+optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
 
 model.compile(optimizer=optimizer, loss=loss.test_loss)
 model.summary()
