@@ -133,7 +133,7 @@ loss = Loss(use_aux=False)
 # optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
 optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
 
-model.compile(optimizer=optimizer, loss=loss.test_loss)
+model.compile(optimizer=optimizer, loss=loss.loss)
 model.summary()
 # model.load_weights(SAVE_WEIGHTS_DIR+'/'+'23.h5')
 
@@ -210,16 +210,23 @@ for epoch in range(EPOCHS):
         batch_input = tf.convert_to_tensor(batch_input, dtype=tf.float32)
         # batch_label = tf.convert_to_tensor(batch_label, dtype=tf.float32)
         pos_stack = tf.convert_to_tensor(pos_stack, dtype=tf.float32)
+        pos_stack = tf.expand_dims(pos_stack, axis=-1)
         cos_stack = tf.convert_to_tensor(cos_stack, dtype=tf.float32)
+        cos_stack = tf.expand_dims(cos_stack, axis=-1)
         sin_stack = tf.convert_to_tensor(sin_stack, dtype=tf.float32)
+        sin_stack = tf.expand_dims(sin_stack, axis=-1)
         width_stack = tf.convert_to_tensor(width_stack, dtype=tf.float32)
+        width_stack = tf.expand_dims(width_stack, axis=-1)
 
-        batch_loss = model.train_on_batch(batch_input, [pos_stack, cos_stack, sin_stack, width_stack])
+        batch_label = tf.concat([pos_stack, cos_stack, sin_stack, width_stack], axis=-1)
+        batch_loss = model.train_on_batch(batch_input, batch_label)
 
-        total_loss = tf.reduce_sum(batch_loss, axis=0)
-        pbar.set_description("Epoch : %d | lr: %f | Total loss: %f | pos loss: %f | cos loss: %f | sin loss: %f | width loss: %f" 
-                            % (epoch, lr, total_loss, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
+        
+        # pbar.set_description("Epoch : %d | lr: %f | Total loss: %f | pos loss: %f | cos loss: %f | sin loss: %f | width loss: %f" 
+                            # % (epoch, lr, total_loss, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
 
+        pbar.set_description("Epoch : %d | lr: %f | Total loss: %f" 
+                            % (epoch, lr, batch_loss))
 
     
     
@@ -285,22 +292,22 @@ for epoch in range(EPOCHS):
             fig = plt.figure()
             for i in range(len(batch_input)):
                 ax0 = fig.add_subplot(rows, cols, 1)
-                ax0.imshow(preds[0][i, :, :])
+                ax0.imshow(preds[i, :, :, 0])
                 ax0.set_title('pred_pos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 2)
-                ax0.imshow(preds[1][i, :, :])
+                ax0.imshow(preds[i, :, :, 1])
                 ax0.set_title('pred_cos')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 3)
-                ax0.imshow(preds[2][i, :, :])
+                ax0.imshow(preds[i, :, :, 2])
                 ax0.set_title('pred_sin')
                 ax0.axis("off")
 
                 ax0 = fig.add_subplot(rows, cols, 4)
-                ax0.imshow(preds[3][i, :, :])
+                ax0.imshow(preds[i, :, :, 3])
                 ax0.set_title('pred_width')
                 ax0.axis("off")
 
@@ -324,10 +331,10 @@ for epoch in range(EPOCHS):
                 ax0.set_title('gt_width')
                 ax0.axis("off")
                 
-                q_img, ang_img, width_img = post_processing(q_img=preds[0][i, :, :],
-                                                            cos_img=preds[1][i, :, :],
-                                                            sin_img=preds[2][i, :, :],
-                                                            width_img=preds[3][i, :, :])
+                q_img, ang_img, width_img = post_processing(q_img=preds[i, :, :, 0],
+                                                            cos_img=preds[i, :, :, 1],
+                                                            sin_img=preds[i, :, :, 2],
+                                                            width_img=preds[i, :, :, 3])
 
                 s = evaluation.calculate_iou_match(grasp_q = q_img,
                                         grasp_angle = ang_img,
@@ -357,7 +364,7 @@ for epoch in range(EPOCHS):
 
                 img = batch_input[i, :, :, :3]
                 ax0 = fig.add_subplot(rows, cols, 12)
-                ax0.imshow(tf.clip_by_value(tf.cast(img+0.5, tf.float32), 0., 1.))
+                ax0.imshow(tf.clip_by_value(tf.cast((img+2) *127.5, tf.int8), 0, 255))
                 ax0.set_title('input')
                 ax0.axis("off")
 

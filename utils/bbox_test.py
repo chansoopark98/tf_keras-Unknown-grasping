@@ -162,7 +162,7 @@ for i in pbar:
 
 
     fig = plt.figure()
-
+    
     ax0 = fig.add_subplot(rows, cols, 1)
     ax0.imshow(pos_img)
     ax0.set_title('pos_img')
@@ -183,6 +183,9 @@ for i in pbar:
     ax3.set_title('width_img')
     ax3.axis("off")
 
+
+    max_v = np.max(img)
+    min_v = np.min(img)
     ax3 = fig.add_subplot(rows, cols, 5)
     ax3.imshow(img)
     ax3.set_title('rgb_img')
@@ -233,7 +236,6 @@ for i in pbar:
                             threshold=0.25)
 
     print('iou results', s)
-
     plt.show()
     
 

@@ -9,9 +9,9 @@ class Loss:
         abs_loss = tf.abs(y_true - y_pred)
         square_loss = 0.5 * (y_true - y_pred) ** 2
         res = tf.where(tf.less(abs_loss, 1.0), square_loss, abs_loss - 0.5)
-        return tf.reduce_sum(res, axis=0)
+        return tf.reduce_mean(res, axis=0)
 
-    def loss(self, y_true, y_pred):        
+    def loss(self, y_true, y_pred):
         y_pos = y_true[:, :, :, 0]
         y_cos = y_true[:, :, :, 1]
         y_sin = y_true[:, :, :, 2]

@@ -223,8 +223,9 @@ class RFNet:
         sin = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='sin', kernel_init=self.kernel_init)
         width = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='width', kernel_init=self.kernel_init)
 
-    
-        return inputs, [pos, cos, sin, width]
+        outputs = tf.concat([pos, cos, sin, width], axis=-1)
+        # [pos, cos, sin, width]
+        return inputs, outputs
 
 
 
