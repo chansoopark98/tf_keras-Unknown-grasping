@@ -63,8 +63,8 @@ def post_processing(q_img, cos_img, sin_img, width_img):
 
     return q_img, ang_img, width_img
 
-# mode = 'jacquard'
-mode = 'cornell'
+mode = 'jacquard'
+# mode = 'cornell'
 
 if mode == 'cornell':
     path = './datasets/Cornell/'
@@ -97,13 +97,12 @@ for i in pbar:
         # bbox
         bbox = dataset.grasp_files[i]
         gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
-
+        
         center = gtbbs.center
         # center = (output_size // 2, output_size // 2)
 
         rgb = dataset.rgb_files[i]
         img = image.Image.from_file(rgb)
-        print(img.shape)
         
         left = max(0, min(center[1] - output_size // 2, img.shape[1] - output_size))
         top = max(0, min(center[0] - output_size // 2, img.shape[0] - output_size))
@@ -151,6 +150,7 @@ for i in pbar:
         sin = np.sin(2 * ang_img)
         
         img.resize((output_size, output_size))        
+        original_img = img.copy()
         img.normalise()
         
         # Depth
