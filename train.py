@@ -120,7 +120,8 @@ mode = 'cornell'
 cornell_path = './datasets/Cornell/'
 jacquard_path = './datasets/Samples/'
 dataset = CornellDataset(file_path=cornell_path, output_size=output_size)
-# testset = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+jacquard = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+
 
 steps_per_epoch = dataset.length // BATCH_SIZE
 
@@ -130,8 +131,8 @@ model = tf.keras.Model(model_input, model_output)
 
 loss = Loss(use_aux=False)
 
-# optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
-optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
+optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
+# optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
 
 model.compile(optimizer=optimizer, loss=loss.loss)
 model.summary()
@@ -142,6 +143,14 @@ rows = 3
 cols = 4
 validation_length = 16
 validation_freq = 3
+
+# create tensorboard graph data for the model
+tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR +'/' + SAVE_MODEL_NAME, 
+                                    histogram_freq=0, 
+                                    batch_size=BATCH_SIZE, 
+                                    write_graph=True, 
+                                    write_grads=False)
+tensorboard.set_model(model)
 
 
 for epoch in range(EPOCHS):
@@ -154,6 +163,7 @@ for epoch in range(EPOCHS):
         'failed': 0}
     lr = decay(base_lr, current_epochs=epoch, epochs=EPOCHS)
     K.set_value(model.optimizer.learning_rate, lr)
+    # dataset.length = jacquard.length
     batch_idx = list(range(dataset.length))
     batch_idx = batch_idx[validation_length:]
     validation_idx = batch_idx[:validation_length]
@@ -217,10 +227,15 @@ for epoch in range(EPOCHS):
         sin_stack = tf.expand_dims(sin_stack, axis=-1)
         width_stack = tf.convert_to_tensor(width_stack, dtype=tf.float32)
         width_stack = tf.expand_dims(width_stack, axis=-1)
+    
+    
+    
+
 
         batch_label = tf.concat([pos_stack, cos_stack, sin_stack, width_stack], axis=-1)
         batch_loss = model.train_on_batch(batch_input, batch_label)
 
+        tensorboard.on_epoch_end(batch_counter, {'train_loss': batch_loss})
         
         # pbar.set_description("Epoch : %d | lr: %f | Total loss: %f | pos loss: %f | cos loss: %f | sin loss: %f | width loss: %f" 
                             # % (epoch, lr, total_loss, batch_loss[0], batch_loss[1], batch_loss[2], batch_loss[3]))
@@ -370,5 +385,7 @@ for epoch in range(EPOCHS):
 
                 plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
                 index +=1
-        
-        print("IoU", results['correct'] / (results['correct'] + results['failed']))
+
+        iou = results['correct'] / (results['correct'] + results['failed'])
+        print("IoU", iou)
+        tensorboard.on_epoch_end(epoch, {'IoU': iou})
