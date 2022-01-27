@@ -104,7 +104,7 @@ DATASET_DIR = args.dataset_dir
 CHECKPOINT_DIR = args.checkpoint_dir
 TENSORBOARD_DIR = args.tensorboard_dir
 SAVE_WEIGHTS_DIR = args.save_weight
-IMAGE_SIZE = (224, 224, 4)
+IMAGE_SIZE = (512, 512, 4)
 USE_WEIGHT_DECAY = args.use_weightDecay
 LOAD_WEIGHT = args.load_weight
 MIXED_PRECISION = args.mixed_precision
@@ -145,7 +145,7 @@ validation_length = 16
 validation_freq = 3
 
 # create tensorboard graph data for the model
-tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR +'/' + SAVE_MODEL_NAME, 
+tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR +'/' + SAVE_MODEL_NAME + '_' + str(IMAGE_SIZE[0]), 
                                     histogram_freq=0, 
                                     batch_size=BATCH_SIZE, 
                                     write_graph=True, 
