@@ -163,10 +163,11 @@ for epoch in range(EPOCHS):
         'failed': 0}
     lr = decay(base_lr, current_epochs=epoch, epochs=EPOCHS)
     K.set_value(model.optimizer.learning_rate, lr)
-    # dataset.length = jacquard.length
+    
     batch_idx = list(range(dataset.length))
-    batch_idx = batch_idx[validation_length:]
-    validation_idx = batch_idx[:validation_length]
+    # batch_idx = batch_idx[validation_length:]
+    # validation_idx = batch_idx[:validation_length]
+    validation_idx = list(range(jacquard.length))
 
     pbar = tqdm(range(len(batch_idx)//BATCH_SIZE), total=len(batch_idx)//BATCH_SIZE, desc='Batch', leave=True, disable=False)    
     for j in pbar:
@@ -258,6 +259,7 @@ for epoch in range(EPOCHS):
             batch_input = []
             batch_label = []
             batch_gtbbs = []
+            batch_before_norm = []
             pos_stack =[]
             cos_stack =[]
             sin_stack =[]
@@ -272,11 +274,11 @@ for epoch in range(EPOCHS):
                 validation_idx.remove(rnd_range)
                 
                 # get bbox
-                bbs = dataset.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                bbs = jacquard.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 # get depth
-                depth_img = dataset.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                depth_img = jacquard.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 # get img
-                rgb_img = dataset.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                rgb_img, rgb_ori = jacquard.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 
                 pos_img, ang_img, width_img = bbs.draw((output_size, output_size))
                 width_img = np.clip(width_img, 0.0, output_size / 2) / (output_size / 2)
@@ -284,10 +286,12 @@ for epoch in range(EPOCHS):
                 cos = np.cos(2 * ang_img)
                 sin = np.sin(2 * ang_img)
 
+                
                 depth_img = tf.expand_dims(depth_img, axis=-1)
                 rgbd = tf.concat([rgb_img, depth_img], axis=-1)
 
                 batch_input.append(rgbd)
+                batch_before_norm.append(rgb_ori)
                 pos_stack.append(pos_img)
                 cos_stack.append(cos)
                 sin_stack.append(sin)
@@ -379,7 +383,7 @@ for epoch in range(EPOCHS):
 
                 img = batch_input[i, :, :, :3]
                 ax0 = fig.add_subplot(rows, cols, 12)
-                ax0.imshow(tf.clip_by_value(tf.cast((img+2) *127.5, tf.int8), 0, 255))
+                ax0.imshow(tf.cast(batch_before_norm[i], tf.uint8))
                 ax0.set_title('input')
                 ax0.axis("off")
 

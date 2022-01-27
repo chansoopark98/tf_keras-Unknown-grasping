@@ -115,9 +115,10 @@ class JacquardDataset:
         rgb_img.rotate(rot)
         rgb_img.zoom(zoom)
         rgb_img.resize((self.output_size, self.output_size))
+        before_norm = rgb_img.copy()
         if normalise:
             rgb_img.normalise()
-        return rgb_img.img
+        return rgb_img.img, before_norm
 
     def get_jname(self, idx):
         return '_'.join(self.grasp_files[idx].split(os.sep)[-1].split('_')[:-1])
