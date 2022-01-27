@@ -83,7 +83,7 @@ class JacquardDataset:
         self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
         self.grasp_files.sort()
         self.length = len(self.grasp_files)
-        self.output_size = 224
+        self.output_size = output_size
 
         if self.length == 0:
             raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
