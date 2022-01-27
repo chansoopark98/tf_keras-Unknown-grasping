@@ -21,22 +21,22 @@ class GraspRectangles:
     """
 
     def __init__(self, grs=None):
-        print('Class : GraspRectangles', '  ', 'function : __init__')
+        # print('Class : GraspRectangles', '  ', 'function : __init__')
         if grs:
             self.grs = grs
         else:
             self.grs = []
 
     def __getitem__(self, item):
-        print('Class : GraspRectangles', '  ', 'function : __getitem__')
+        # print('Class : GraspRectangles', '  ', 'function : __getitem__')
         return self.grs[item]
 
     def __iter__(self):
-        print('Class : GraspRectangles', '  ', 'function : __iter__')
+        # print('Class : GraspRectangles', '  ', 'function : __iter__')
         return self.grs.__iter__()
 
     def __getattr__(self, attr):
-        print('Class : GraspRectangles', '  ', 'function : __getattr__')
+        # print('Class : GraspRectangles', '  ', 'function : __getattr__')
         """
         Test if GraspRectangle has the desired attr as a function and call it.
         """
@@ -48,7 +48,7 @@ class GraspRectangles:
 
     @classmethod
     def load_from_array(cls, arr):
-        print('Class : GraspRectangles', '  ', 'function : load_from_array')
+        # print('Class : GraspRectangles', '  ', 'function : load_from_array')
         """
         Load grasp rectangles from numpy array.
         :param arr: Nx4x2 array, where each 4x2 array is the 4 corner pixels of a grasp rectangle.
@@ -65,7 +65,7 @@ class GraspRectangles:
 
     @classmethod
     def load_from_cornell_file(cls, fname):
-        print('Class : GraspRectangles', '  ', 'function : load_from_cornell_file')
+        # print('Class : GraspRectangles', '  ', 'function : load_from_cornell_file')
         """
         Load grasp rectangles from a Cornell dataset grasp file.
         :param fname: Path to text file.
@@ -96,7 +96,7 @@ class GraspRectangles:
     
     @classmethod
     def load_from_tensor(cls, tensor):
-        print('Class : GraspRectangles', '  ', 'function : load_from_tensor')
+        # print('Class : GraspRectangles', '  ', 'function : load_from_tensor')
         tensor = tensor.numpy()
         grs = []
         for i in range(len(tensor)):
@@ -105,7 +105,7 @@ class GraspRectangles:
 
     @classmethod
     def load_from_tfdata(cls, tensor):
-        print('Class : GraspRectangles', '  ', 'function : load_from_tfdata')
+        # print('Class : GraspRectangles', '  ', 'function : load_from_tfdata')
         tensor = tensor
         grs = []
         for i in range(len(tensor)):
@@ -114,7 +114,7 @@ class GraspRectangles:
 
     @classmethod
     def load_from_jacquard_file(cls, fname, scale=1.0):
-        print('Class : GraspRectangles', '  ', 'function : load_from_jacquard_file')
+        # print('Class : GraspRectangles', '  ', 'function : load_from_jacquard_file')
         """
         Load grasp rectangles from a Jacquard dataset file.
         :param fname: Path to file.
@@ -132,7 +132,7 @@ class GraspRectangles:
         return grs
 
     def append(self, gr):
-        print('Class : GraspRectangles', '  ', 'function : append')
+        # print('Class : GraspRectangles', '  ', 'function : append')
         """
         Add a grasp rectangle to this GraspRectangles object
         :param gr: GraspRectangle
@@ -140,7 +140,7 @@ class GraspRectangles:
         self.grs.append(gr)
 
     def copy(self):
-        print('Class : GraspRectangles', '  ', 'function : copy')
+        # print('Class : GraspRectangles', '  ', 'function : copy')
         """
         :return: A deep copy of this object and all of its GraspRectangles.
         """
@@ -150,7 +150,7 @@ class GraspRectangles:
         return new_grs
 
     def show(self, ax=None, shape=None):
-        print('Class : GraspRectangles', '  ', 'function : show')
+        # print('Class : GraspRectangles', '  ', 'function : show')
         """
         Draw all GraspRectangles on a matplotlib plot.
         :param ax: (optional) existing axis
@@ -167,7 +167,7 @@ class GraspRectangles:
             self.plot(ax)
 
     def draw(self, shape, position=True, angle=True, width=True):
-        print('Class : GraspRectangles', '  ', 'function : draw')
+        # print('Class : GraspRectangles', '  ', 'function : draw')
         """
         Plot all GraspRectangles as solid rectangles in a numpy array, e.g. as network training data.
         :param shape: output shape
@@ -201,7 +201,7 @@ class GraspRectangles:
         return pos_out, ang_out, width_out
 
     def to_array(self, pad_to=0):
-        print('Class : GraspRectangles', '  ', 'function : to_array')
+        # print('Class : GraspRectangles', '  ', 'function : to_array')
         """
         Convert all GraspRectangles to a single array.
         :param pad_to: Length to 0-pad the array along the first dimension
@@ -215,7 +215,7 @@ class GraspRectangles:
 
     @property
     def center(self):
-        print('Class : GraspRectangles', '  ', 'function : center')
+        # print('Class : GraspRectangles', '  ', 'function : center')
         """
         Compute mean center of all GraspRectangles
         :return: float, mean centre of all GraspRectangles
@@ -233,16 +233,16 @@ class GraspRectangle:
     """
 
     def __init__(self, points):
-        print('Class : GraspRectangle', '  ', 'function : __init__')
+        # print('Class : GraspRectangle', '  ', 'function : __init__')
         self.points = points
 
     def __str__(self):
-        print('Class : GraspRectangle', '  ', 'function : __str__')
+        # print('Class : GraspRectangle', '  ', 'function : __str__')
         return str(self.points)
 
     @property
     def angle(self):
-        print('Class : GraspRectangle', '  ', 'function : angle')
+        # print('Class : GraspRectangle', '  ', 'function : angle')
         """
         :return: Angle of the grasp to the horizontal.
         """
@@ -252,7 +252,7 @@ class GraspRectangle:
 
     @property
     def as_grasp(self):
-        print('Class : GraspRectangle', '  ', 'function : as_grasp')
+        # print('Class : GraspRectangle', '  ', 'function : as_grasp')
         """
         :return: GraspRectangle converted to a Grasp
         """
@@ -260,7 +260,7 @@ class GraspRectangle:
 
     @property
     def center(self):
-        print('Class : GraspRectangle', '  ', 'function : center')
+        # print('Class : GraspRectangle', '  ', 'function : center')
         """
         :return: Rectangle center point
         """
@@ -268,7 +268,7 @@ class GraspRectangle:
 
     @property
     def length(self):
-        print('Class : GraspRectangle', '  ', 'function : length')
+        # print('Class : GraspRectangle', '  ', 'function : length')
         """
         :return: Rectangle length (i.e. along the axis of the grasp)
         """
@@ -278,7 +278,7 @@ class GraspRectangle:
 
     @property
     def width(self):
-        print('Class : GraspRectangle', '  ', 'function : width')
+        # print('Class : GraspRectangle', '  ', 'function : width')
         """
         :return: Rectangle width (i.e. perpendicular to the axis of the grasp)
         """
@@ -287,7 +287,7 @@ class GraspRectangle:
         return np.sqrt(dx ** 2 + dy ** 2)
 
     def polygon_coords(self, shape=None):
-        print('Class : GraspRectangle', '  ', 'function : polygon_coords')
+        # print('Class : GraspRectangle', '  ', 'function : polygon_coords')
         """
         :param shape: Output Shape
         :return: Indices of pixels within the grasp rectangle polygon.
@@ -295,7 +295,7 @@ class GraspRectangle:
         return polygon(self.points[:, 0], self.points[:, 1], shape)
 
     def compact_polygon_coords(self, shape=None):
-        print('Class : GraspRectangle', '  ', 'function : compact_polygon_coords')
+        # print('Class : GraspRectangle', '  ', 'function : compact_polygon_coords')
         """
         :param shape: Output shape
         :return: Indices of pixels within the centre thrid of the grasp rectangle.
@@ -303,7 +303,7 @@ class GraspRectangle:
         return Grasp(self.center, self.angle, self.length / 3, self.width).as_gr.polygon_coords(shape)
 
     def iou(self, gr, angle_threshold=np.pi / 6):
-        print('Class : GraspRectangle', '  ', 'function : iou')
+        # print('Class : GraspRectangle', '  ', 'function : iou')
         """
         Compute IoU with another grasping rectangle
         :param gr: GraspingRectangle to compare
@@ -332,23 +332,23 @@ class GraspRectangle:
         return intersection / union
 
     def copy(self):
-        print('Class : GraspRectangle', '  ', 'function : copy')
+        # print('Class : GraspRectangle', '  ', 'function : copy')
         """
         :return: Copy of self.
         """
         return GraspRectangle(self.points.copy())
 
     def offset(self, offset):
-        print('Class : GraspRectangle', '  ', 'function : offset')
+        # print('Class : GraspRectangle', '  ', 'function : offset')
         """
         Offset grasp rectangle
         :param offset: array [y, x] distance to offset
         """
         self.points += np.array(offset).reshape((1, 2))
-        print('after', self.points)
+        # print('after', self.points)
 
     def rotate(self, angle, center):
-        print('Class : GraspRectangle', '  ', 'function : rotate')
+        # print('Class : GraspRectangle', '  ', 'function : rotate')
         """
         Rotate grasp rectangle
         :param angle: Angle to rotate (in radians)
@@ -364,7 +364,7 @@ class GraspRectangle:
         self.points = ((np.dot(R, (self.points - c).T)).T + c).astype(np.int)
 
     def scale(self, factor):
-        print('Class : GraspRectangle', '  ', 'function : scale')
+        # print('Class : GraspRectangle', '  ', 'function : scale')
         """
         :param factor: Scale grasp rectangle by factor
         """
@@ -373,7 +373,7 @@ class GraspRectangle:
         self.points *= factor
 
     def plot(self, ax, color=None):
-        print('Class : GraspRectangle', '  ', 'function : plot')
+        # print('Class : GraspRectangle', '  ', 'function : plot')
         """
         Plot grasping rectangle.
         :param ax: Existing matplotlib axis
@@ -383,7 +383,7 @@ class GraspRectangle:
         ax.plot(points[:, 1], points[:, 0], color=color)
 
     def zoom(self, factor, center):
-        print('Class : GraspRectangle', '  ', 'function : zoom')
+        # print('Class : GraspRectangle', '  ', 'function : zoom')
         """
         Zoom grasp rectangle by given factor.
         :param factor: Zoom factor
@@ -405,7 +405,7 @@ class Grasp:
     """
 
     def __init__(self, center, angle, length=60, width=30):
-        print('Class : Grasp', '  ', 'function : __init__')
+        # print('Class : Grasp', '  ', 'function : __init__')
         self.center = center
         self.angle = angle  # Positive angle means rotate anti-clockwise from horizontal.
         self.length = length
@@ -413,7 +413,7 @@ class Grasp:
 
     @property
     def as_gr(self):
-        print('Class : Grasp', '  ', 'function : as_gr')
+        # print('Class : Grasp', '  ', 'function : as_gr')
         """
         Convert to GraspRectangle
         :return: GraspRectangle representation of grasp.
@@ -436,7 +436,7 @@ class Grasp:
         ).astype(np.float))
 
     def max_iou(self, grs):
-        print('Class : Grasp', '  ', 'function : max_iou')
+        # print('Class : Grasp', '  ', 'function : max_iou')
         """
         Return maximum IoU between self and a list of GraspRectangles
         :param grs: List of GraspRectangles
@@ -451,7 +451,7 @@ class Grasp:
         return max_iou
 
     def plot(self, ax, color=None):
-        print('Class : Grasp', '  ', 'function : plot')
+        # print('Class : Grasp', '  ', 'function : plot')
         """
         Plot Grasp
         :param ax: Existing matplotlib axis
@@ -460,7 +460,7 @@ class Grasp:
         self.as_gr.plot(ax, color)
 
     def to_jacquard(self, scale=1):
-        print('Class : Grasp', '  ', 'function : to_jacquard')
+        # print('Class : Grasp', '  ', 'function : to_jacquard')
         """
         Output grasp in "Jacquard Dataset Format" (https://jacquard.liris.cnrs.fr/database.php)
         :param scale: (optional) scale to apply to grasp
@@ -473,7 +473,7 @@ class Grasp:
 
 
 def detect_grasps(q_img, ang_img, width_img=None, no_grasps=1):
-    print('Class : __', '  ', 'function : detect_grasps')
+    # print('Class : __', '  ', 'function : detect_grasps')
     """
     Detect grasps in a network output.
     :param q_img: Q image network output

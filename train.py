@@ -77,8 +77,8 @@ def decay(current_lr, current_epochs, epochs):
 tf.keras.backend.clear_session()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=8)
-parser.add_argument("--epoch",          type=int,   help="에폭 설정", default=200)
+parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=16)
+parser.add_argument("--epoch",          type=int,   help="에폭 설정", default=300)
 parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.001)
 parser.add_argument("--weight_decay",   type=float, help="Weight Decay 설정", default=0.0005)
 parser.add_argument("--optimizer",     type=str,   help="Optimizer", default='adam')
@@ -90,7 +90,7 @@ parser.add_argument("--tensorboard_dir",  type=str,   help="텐서보드 저장 
 parser.add_argument("--save_weight",  type=str,   help="가중치 저장 경로", default='./checkpoints')
 parser.add_argument("--use_weightDecay",  type=bool,  help="weightDecay 사용 유무", default=False)
 parser.add_argument("--load_weight",  type=bool,  help="가중치 로드", default=False)
-parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=False)
+parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=True)
 parser.add_argument("--distribution_mode",  type=bool,  help="분산 학습 모드 설정", default=True)
 
 args = parser.parse_args()
@@ -109,9 +109,7 @@ USE_WEIGHT_DECAY = args.use_weightDecay
 LOAD_WEIGHT = args.load_weight
 MIXED_PRECISION = args.mixed_precision
 DISTRIBUTION_MODE = args.distribution_mode
-if MIXED_PRECISION:
-    policy = mixed_precision.Policy('mixed_float16', loss_scale=1024)
-    mixed_precision.set_policy(policy)
+
 
 os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
 
@@ -131,8 +129,12 @@ model = tf.keras.Model(model_input, model_output)
 
 loss = Loss(use_aux=False)
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
-# optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
+# optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
+optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
+if MIXED_PRECISION:
+    policy = mixed_precision.Policy('mixed_float16', loss_scale=1024)
+    mixed_precision.set_policy(policy)
+    optimizer = mixed_precision.LossScaleOptimizer(optimizer, loss_scale='dynamic')  # tf2.4.1 이전
 
 model.compile(optimizer=optimizer, loss=loss.loss)
 model.summary()

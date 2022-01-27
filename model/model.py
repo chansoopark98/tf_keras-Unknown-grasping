@@ -218,10 +218,10 @@ class RFNet:
 
         output = conv3x3(x=output, filters=32, kernel_size=3, strides=1, padding='same', kernel_init=self.kernel_init, activation='relu', prefix='output_conv')
 
-        pos = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='pos', kernel_init=self.kernel_init)
-        cos = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='cos', kernel_init=self.kernel_init)
-        sin = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='sin', kernel_init=self.kernel_init)
-        width = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.0, prefix='width', kernel_init=self.kernel_init)
+        pos = classifier(output, output_filters=1, kernel_size=3, activation='sigmoid', use_dropout=0.1, prefix='pos', kernel_init=self.kernel_init)
+        cos = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='cos', kernel_init=self.kernel_init)
+        sin = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='sin', kernel_init=self.kernel_init)
+        width = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='width', kernel_init=self.kernel_init)
 
         outputs = tf.concat([pos, cos, sin, width], axis=-1)
         # [pos, cos, sin, width]

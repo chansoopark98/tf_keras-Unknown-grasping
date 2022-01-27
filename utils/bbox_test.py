@@ -63,8 +63,8 @@ def post_processing(q_img, cos_img, sin_img, width_img):
 
     return q_img, ang_img, width_img
 
-mode = 'jacquard'
-# mode = 'cornell'
+# mode = 'jacquard'
+mode = 'cornell'
 
 if mode == 'cornell':
     path = './datasets/Cornell/'
@@ -82,7 +82,7 @@ os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
-output_size = 224
+output_size = 512
 rows=3
 cols=4
 dataset = CornellDataset(file_path=path, mode=mode)
@@ -95,6 +95,9 @@ zoom_factor = np.random.uniform(0.5, 1.0)
 for i in pbar:
     if dataset.mode == 'cornell':
         # bbox
+        rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
+        rot = random.choice(rotations)
+        zoom_factor = np.random.uniform(0.5, 1.0)
         bbox = dataset.grasp_files[i]
         gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
         
@@ -107,15 +110,18 @@ for i in pbar:
         left = max(0, min(center[1] - output_size // 2, img.shape[1] - output_size))
         top = max(0, min(center[0] - output_size // 2, img.shape[0] - output_size))
 
-        # gtbbs.rotate(rot, center)
+        gtbbs.rotate(rot, center)
         gtbbs.offset((-top, -left))
+        gtbbs.zoom(zoom_factor, (output_size // 2, output_size // 2))
         
         pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
         width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
         cos = np.cos(2 * ang_img)
         sin = np.sin(2 * ang_img)
 
+        img.rotate(rot, center)
         img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
+        img.zoom(zoom_factor)
         img.resize((output_size, output_size))
         original_img = img.copy()
         img.normalise()
@@ -123,10 +129,16 @@ for i in pbar:
         # Depth
         depth_input = imread(dataset.depth_files[i])
         depth_img = image.DepthImage.from_tiff(dataset.depth_files[i])
-        depth_img.inpaint()        
-        depth_img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
-        depth_img.resize((output_size, output_size))
+        # depth_img.inpaint()        
+        # depth_img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
+        # depth_img.resize((output_size, output_size))
+        # depth_img.normalise()
+        depth_img.inpaint()  
+        depth_img.rotate(rot, center)
+        depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
         depth_img.normalise()
+        depth_img.zoom(zoom_factor)
+        depth_img.resize((output_size, output_size))
 
 
     else:
