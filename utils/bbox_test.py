@@ -118,6 +118,7 @@ for i in pbar:
 
         img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
         img.resize((output_size, output_size))
+        original_img = img.copy()
         img.normalise()
         
         # Depth
@@ -225,6 +226,11 @@ for i in pbar:
 
     ax3 = fig.add_subplot(rows, cols, 11)
     ax3.imshow(width_img)
+    ax3.set_title('width_img')
+    ax3.axis("off")
+
+    ax3 = fig.add_subplot(rows, cols, 12)
+    ax3.imshow(original_img)
     ax3.set_title('width_img')
     ax3.axis("off")
 
