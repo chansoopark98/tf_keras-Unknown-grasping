@@ -20,6 +20,8 @@ class CornellDataset:
         self.mode = mode
         if self.mode == 'cornell':
             self.grasp_files = glob.glob(os.path.join(file_path, '*', 'pcd*cpos.txt'))
+            self.pcds =  glob.glob(os.path.join(file_path, '*', 'pcd*[0-9].txt'))
+            self.pcds.sort()
             self.grasp_files.sort()
             self.length = len(self.grasp_files)
 
@@ -82,7 +84,7 @@ os.makedirs(rgb_path, exist_ok=True)
 os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
-output_size = 512
+output_size = 300
 rows=3
 cols=4
 dataset = CornellDataset(file_path=path, mode=mode)
@@ -97,16 +99,18 @@ for i in pbar:
         # bbox
         rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
         rot = random.choice(rotations)
+        # zoom_factor = np.random.uniform(0.5, 1.0)
         zoom_factor = np.random.uniform(0.5, 1.0)
+        
         bbox = dataset.grasp_files[i]
         gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
         
         center = gtbbs.center
         # center = (output_size // 2, output_size // 2)
-
+        
         rgb = dataset.rgb_files[i]
         img = image.Image.from_file(rgb)
-        
+        original_img = img.copy()
         left = max(0, min(center[1] - output_size // 2, img.shape[1] - output_size))
         top = max(0, min(center[0] - output_size // 2, img.shape[0] - output_size))
 
@@ -123,17 +127,24 @@ for i in pbar:
         img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
         img.zoom(zoom_factor)
         img.resize((output_size, output_size))
-        original_img = img.copy()
+        before_norm_img = img.copy()
         img.normalise()
         
         # Depth
-        depth_input = imread(dataset.depth_files[i])
         depth_img = image.DepthImage.from_tiff(dataset.depth_files[i])
+        inpaint_depth = image.DepthImage.from_pcd(dataset.pcds[i], (480, 640))
+        inpaint_depth.inpaint()
+        inpaint_depth.rotate(rot, center)
+        inpaint_depth.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
+        inpaint_depth.normalise()
+        inpaint_depth.zoom(zoom_factor)
+        inpaint_depth.resize((output_size, output_size))
+        depth_input = depth_img.copy()
         # depth_img.inpaint()        
         # depth_img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
         # depth_img.resize((output_size, output_size))
         # depth_img.normalise()
-        depth_img.inpaint()  
+        # depth_img.inpaint()  
         depth_img.rotate(rot, center)
         depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
         depth_img.normalise()
@@ -200,18 +211,18 @@ for i in pbar:
     max_v = np.max(img)
     min_v = np.min(img)
     ax3 = fig.add_subplot(rows, cols, 5)
-    ax3.imshow(img)
+    ax3.imshow(before_norm_img)
     ax3.set_title('rgb_img')
     ax3.axis("off")
 
     ax3 = fig.add_subplot(rows, cols, 6)
-    ax3.imshow(depth_img, cmap='gray')
+    ax3.imshow(depth_img)
     ax3.set_title('depth_img')
     ax3.axis("off")
     
     rgb = imread(rgb)
     ax3 = fig.add_subplot(rows, cols, 7)
-    ax3.imshow(rgb)
+    ax3.imshow(original_img)
     ax3.set_title('original_rgb')
     ax3.axis("off")
 
@@ -242,20 +253,15 @@ for i in pbar:
     ax3.axis("off")
 
     ax3 = fig.add_subplot(rows, cols, 12)
-    ax3.imshow(original_img)
-    ax3.set_title('width_img')
+    ax3.imshow(inpaint_depth)
+    ax3.set_title('from_pcd_inpaint')
     ax3.axis("off")
-
     s = evaluation.calculate_iou_match(grasp_q = q_img,
                             grasp_angle = ang_img,
                             ground_truth_bbs = gtbbs,
-                            no_grasps = 1,
+                            no_grasps = 3,
                             grasp_width = width_img,
                             threshold=0.25)
 
     print('iou results', s)
     plt.show()
-    
-
-
-

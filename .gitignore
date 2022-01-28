@@ -8,6 +8,7 @@ __pycache__/
 /tfds
 /checkpoints
 /tensorboard
+/results
 
 # C extensions
 *.so

@@ -1,4 +1,5 @@
 from pickle import FALSE
+from tkinter.messagebox import NO
 from cv2 import multiply
 from tensorflow.keras import layers
 from tensorflow.keras.layers import (
@@ -118,17 +119,24 @@ class RFNet:
         x = Activation('relu')(x)
         x = Conv2D(filters=output_channel, kernel_size=(3, 3), strides=(1, 1), padding='same', use_bias=False, kernel_initializer=self.kernel_init)(x)
         x = BatchNormalization()(x)
-        skip = x
+        
 
-        # 2
-        x = Conv2D(filters=output_channel, kernel_size=(3, 3), strides=(1, 1), padding='same', use_bias=False, kernel_initializer=self.kernel_init)(skip)
+        skip_1 = Conv2D(filters=output_channel, kernel_size=(3, 3), strides=(stride, stride), padding='same', use_bias=False, kernel_initializer=self.kernel_init)(feature)
+        skip_1 = BatchNormalization()(skip_1)
+
+        x = x + skip_1
+        x = Activation('relu')(x)
+        
+        skip_2 = x
+        x = Conv2D(filters=output_channel, kernel_size=(3, 3), strides=(1, 1), padding='same', use_bias=False, kernel_initializer=self.kernel_init)(x)
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
         x = Conv2D(filters=output_channel, kernel_size=(3, 3), strides=(1, 1), padding='same', use_bias=False, kernel_initializer=self.kernel_init)(x)
         x = BatchNormalization()(x)
-        output = x + skip
-        
+
+        output = x + skip_2
         x = Activation('relu')(output)
+
         return x, output
 
     def attention_block(self, feature, output_channel):
@@ -216,9 +224,7 @@ class RFNet:
             *skip_size[1:3], interpolation="bilinear"
         )(output)
 
-        output = conv3x3(x=output, filters=32, kernel_size=3, strides=1, padding='same', kernel_init=self.kernel_init, activation='relu', prefix='output_conv')
-
-        pos = classifier(output, output_filters=1, kernel_size=3, activation='sigmoid', use_dropout=0.1, prefix='pos', kernel_init=self.kernel_init)
+        pos = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='pos', kernel_init=self.kernel_init)
         cos = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='cos', kernel_init=self.kernel_init)
         sin = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='sin', kernel_init=self.kernel_init)
         width = classifier(output, output_filters=1, kernel_size=3, activation=None, use_dropout=0.1, prefix='width', kernel_init=self.kernel_init)

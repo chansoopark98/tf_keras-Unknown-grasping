@@ -2,10 +2,8 @@ import argparse
 import time
 import os
 import tensorflow as tf
-import tensorflow_datasets as tfds
 import tensorflow_addons as tfa
 import numpy as np
-from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint
 from tensorflow.keras.mixed_precision import experimental as mixed_precision
 from torch import le
 from tqdm import tqdm
@@ -15,23 +13,14 @@ import matplotlib.pyplot as plt
 from utils.utils.dataset_processing import grasp, image
 from utils.data_generator import augment
 from tensorflow.keras import backend as K
-from tensorflow.keras.callbacks import TensorBoard
 from skimage.filters import gaussian
-from utils.utils.dataset_processing import evaluation
+from utils.utils.dataset_processing import evaluation, grasp
+from utils.utils.visualisation.plot import save_results
 from utils.data_generator_test import CornellDataset, JacquardDataset    
 import random
 import tensorflow_addons as tfa
 
 # LD_PRELOAD="/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4" python train.py
-
-def write_log(callback, names, logs, batch_no):
-    for name in zip(names, logs):
-        summary = tf.Summary()
-        summary_value = summary.value.add()
-        summary_value.simple_value = logs
-        summary_value.tag = name
-        callback.writer.add_summary(summary, batch_no)
-        callback.writer.flush()
 
 def post_processing(q_img, cos_img, sin_img, width_img):
 
@@ -77,7 +66,7 @@ def decay(current_lr, current_epochs, epochs):
 tf.keras.backend.clear_session()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=16)
+parser.add_argument("--batch_size",     type=int,   help="배치 사이즈값 설정", default=8)
 parser.add_argument("--epoch",          type=int,   help="에폭 설정", default=300)
 parser.add_argument("--lr",             type=float, help="Learning rate 설정", default=0.001)
 parser.add_argument("--weight_decay",   type=float, help="Weight Decay 설정", default=0.0005)
@@ -90,7 +79,7 @@ parser.add_argument("--tensorboard_dir",  type=str,   help="텐서보드 저장 
 parser.add_argument("--save_weight",  type=str,   help="가중치 저장 경로", default='./checkpoints')
 parser.add_argument("--use_weightDecay",  type=bool,  help="weightDecay 사용 유무", default=False)
 parser.add_argument("--load_weight",  type=bool,  help="가중치 로드", default=False)
-parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=True)
+parser.add_argument("--mixed_precision",  type=bool,  help="mixed_precision 사용", default=False)
 parser.add_argument("--distribution_mode",  type=bool,  help="분산 학습 모드 설정", default=True)
 
 args = parser.parse_args()
@@ -104,7 +93,7 @@ DATASET_DIR = args.dataset_dir
 CHECKPOINT_DIR = args.checkpoint_dir
 TENSORBOARD_DIR = args.tensorboard_dir
 SAVE_WEIGHTS_DIR = args.save_weight
-IMAGE_SIZE = (512, 512, 4)
+IMAGE_SIZE = (300, 300, 4)
 USE_WEIGHT_DECAY = args.use_weightDecay
 LOAD_WEIGHT = args.load_weight
 MIXED_PRECISION = args.mixed_precision
@@ -129,8 +118,8 @@ model = tf.keras.Model(model_input, model_output)
 
 loss = Loss(use_aux=False)
 
-# optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
-optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
+optimizer = tf.keras.optimizers.Adam(learning_rate=base_lr)
+# optimizer = tfa.optimizers.RectifiedAdam(learning_rate =base_lr, weight_decay=0.00001)
 if MIXED_PRECISION:
     policy = mixed_precision.Policy('mixed_float16', loss_scale=1024)
     mixed_precision.set_policy(policy)
@@ -145,7 +134,7 @@ rows = 3
 cols = 4
 validation_length = 16
 validation_freq = 3
-
+np.random.seed(123)
 # create tensorboard graph data for the model
 tensorboard = tf.keras.callbacks.TensorBoard(log_dir=TENSORBOARD_DIR +'/' + SAVE_MODEL_NAME + '_' + str(IMAGE_SIZE[0]), 
                                     histogram_freq=0, 
@@ -391,6 +380,22 @@ for epoch in range(EPOCHS):
 
                 plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
                 index +=1
+
+                # grasps = grasp.detect_grasps(q_img, ang_img, width_img=width_img, no_grasps=1)
+                # with open(jo_fn, 'a') as f:
+                    # for g in grasps:
+                        # f.write(test_data.dataset.get_jname(didx) + '\n')
+                        # f.write(g.to_jacquard(scale=1024 / 300) + '\n')
+                if i == 0:
+                    plot_rgb, _ = jacquard.get_rgb(i, rot, zoom_factor, normalise=False)
+                    plot_depth = jacquard.get_depth(i, rot, zoom=zoom_factor)
+                    save_results(rgb_img=plot_rgb,
+                    depth_img=plot_depth,
+                    grasp_q_img=q_img,
+                    grasp_angle_img=ang_img,
+                    no_grasps=1,
+                    grasp_width_img=width_img,
+                    epoch=epoch)
 
         iou = results['correct'] / (results['correct'] + results['failed'])
         print("IoU", iou)
