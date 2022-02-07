@@ -366,7 +366,7 @@ class GraspRectangle:
     def scale(self, factor):
         # print('Class : GraspRectangle', '  ', 'function : scale')
         """
-        :param factor: Scale grasp rectangle by factor
+        :param factor: Scale grasp rectangle by factoreeeeeeeeeeeeeeeee
         """
         if factor == 1.0:
             return

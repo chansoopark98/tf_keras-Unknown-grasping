@@ -10,6 +10,7 @@ from utils.dataset_processing import grasp, image
 import tensorflow as tf
 from skimage.filters import gaussian
 from utils.dataset_processing import evaluation
+import tensorflow_datasets as tfds
 # from utils.dataset_processing import grasp, image
 
 class CornellDataset:
@@ -29,7 +30,9 @@ class CornellDataset:
             self.rgb_files = [f.replace('d.tiff', 'r.png') for f in self.depth_files]
         
         else:
-            self.grasp_files = glob.glob(os.path.join(file_path+'/*/', '*', '*_grasps.txt'))
+            # self.grasp_files = glob.glob(os.path.join(file_path+'/*/', '*', '*_grasps.txt'))
+            self.grasp_files = glob.glob(os.path.join(file_path+'/Jacquard_Dataset_0/', '*', '*_grasps.txt'))
+            
             self.grasp_files.sort()
             self.length = len(self.grasp_files)
             print(self.length)
@@ -37,7 +40,9 @@ class CornellDataset:
                 raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
 
             self.depth_files = [f.replace('grasps.txt', 'perfect_depth.tiff') for f in self.grasp_files]
+            self.depth_files.sort()
             self.rgb_files = [f.replace('perfect_depth.tiff', 'RGB.png') for f in self.depth_files]
+            self.rgb_files.sort()
 
 def write_log(callback, names, logs, batch_no):
     for name in zip(names, logs):
@@ -85,14 +90,35 @@ os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
 output_size = 300
-rows=3
+rows=4
 cols=4
 dataset = CornellDataset(file_path=path, mode=mode)
 pbar = tqdm(range(dataset.length))
 
+dataset_path = './tfds/'
+
+train_data, meta = tfds.load('Jacquard', split='train', with_info=True, shuffle_files=False)
+
+BATCH_SIZE = 1
+number_train = meta.splits['train'].num_examples
+print(number_train)
+
+# number_train = train_data.reduce(0, lambda x, _: x + 1).numpy()
+# print("학습 데이터 개수", number_train)
+steps_per_epoch = number_train // BATCH_SIZE
+
 rotations = [0, np.pi / 2, 2 * np.pi / 2, 3 * np.pi / 2]
 rot = random.choice(rotations)
 zoom_factor = np.random.uniform(0.5, 1.0)
+tfds_rgb = None
+tfds_depth = None
+tfds_box = None
+for data in train_data:
+    tfds_rgb = data['rgb']
+    tfds_depth = data['depth']
+    tfds_box = data['box']
+    break
+
 
 for i in pbar:
     if dataset.mode == 'cornell':
@@ -103,6 +129,7 @@ for i in pbar:
         zoom_factor = np.random.uniform(0.5, 1.0)
         
         bbox = dataset.grasp_files[i]
+        
         gtbbs = grasp.GraspRectangles.load_from_cornell_file(bbox)
         
         center = gtbbs.center
@@ -141,10 +168,7 @@ for i in pbar:
         inpaint_depth.resize((output_size, output_size))
         depth_input = depth_img.copy()
         # depth_img.inpaint()        
-        # depth_img.crop((top, left), (min(img.shape[0], top + output_size), min(img.shape[1], left + output_size)))
-        # depth_img.resize((output_size, output_size))
-        # depth_img.normalise()
-        # depth_img.inpaint()  
+        # depth_img.crop((top, left), (min(imgprint(dataset.grasp_files[i])
         depth_img.rotate(rot, center)
         depth_img.crop((top, left), (min(480, top + output_size), min(640, left + output_size)))
         depth_img.normalise()
@@ -154,6 +178,7 @@ for i in pbar:
 
     else:
         bbox = dataset.grasp_files[i]
+        print(dataset.grasp_files[i])
         gtbbs = grasp.GraspRectangles.load_from_jacquard_file(bbox, output_size/1024.)
         get_shape = gtbbs.to_array()
         
@@ -268,4 +293,18 @@ for i in pbar:
                             threshold=0.25)
 
     print('iou results', s)
+
+
+
+    ax3 = fig.add_subplot(rows, cols, 13)
+    ax3.imshow(tfds_rgb)
+    ax3.set_title('tfds_rgb')
+    ax3.axis("off")
+
+    ax3 = fig.add_subplot(rows, cols, 14)
+    ax3.imshow(tfds_depth)
+    ax3.set_title('tfds_depth')
+    ax3.axis("off")
+    
+
     plt.show()

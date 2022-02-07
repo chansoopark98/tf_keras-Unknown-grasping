@@ -81,14 +81,14 @@ class Jacquard(tfds.core.GeneratorBasedBuilder):
 
     # TODO(cornell_grasp): Returns the Dict[split names, Iterator[Key, Example]]
     return {
-        # 'train': self._generate_examples(path=extracted_path/'Jacquard/Jacquard_Dataset_0/')
-        'train': self._generate_examples(path=extracted_path/'Jacquard/')
+        'train': self._generate_examples(path=extracted_path/'Jacquard/Jacquard_Dataset_0/')
+        # 'train': self._generate_examples(path=extracted_path/'Jacquard/')
     }
 
   def _generate_examples(self, path):
     """Yields examples."""
-    
-    grasp_files = glob.glob(os.path.join(path, '*/*', '*_grasps.txt'))
+    grasp_files = glob.glob(os.path.join(path, '*', '*_grasps.txt'))
+    # grasp_files = glob.glob(os.path.join(path, '*/*', '*_grasps.txt'))
     grasp_files.sort()
     length = len(grasp_files)
     output_size = 300
