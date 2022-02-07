@@ -29,10 +29,10 @@ class CornellDataset:
             self.rgb_files = [f.replace('d.tiff', 'r.png') for f in self.depth_files]
         
         else:
-            self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
+            self.grasp_files = glob.glob(os.path.join(file_path+'/*/', '*', '*_grasps.txt'))
             self.grasp_files.sort()
             self.length = len(self.grasp_files)
-
+            print(self.length)
             if self.length == 0:
                 raise FileNotFoundError('No dataset files found. Check path: {}'.format(file_path))
 
@@ -65,14 +65,14 @@ def post_processing(q_img, cos_img, sin_img, width_img):
 
     return q_img, ang_img, width_img
 
-# mode = 'jacquard'
-mode = 'cornell'
+mode = 'jacquard'
+# mode = 'cornell'
 
 if mode == 'cornell':
     path = './datasets/Cornell/'
     output_path = './cornell_output/'
 else:
-    path = './datasets/Samples/'
+    path = './datasets/Jacquard/'
     output_path = './jacquard_output/'
     
     
@@ -155,34 +155,35 @@ for i in pbar:
     else:
         bbox = dataset.grasp_files[i]
         gtbbs = grasp.GraspRectangles.load_from_jacquard_file(bbox, output_size/1024.)
-
-        center = gtbbs.center
-
-        rgb = dataset.rgb_files[i]
-        img = image.Image.from_file(rgb)
-        
-        left = max(0, min(center[1] - output_size // 2, img.shape[1] - output_size))
-        top = max(0, min(center[0] - output_size // 2, img.shape[0] - output_size))
-
-        # gtbbs.rotate(rot, center)
-        gtbbs.offset((-top, -left))
+        c = output_size // 2
+        gtbbs.rotate(rot, (c, c))
+        gtbbs.zoom(zoom_factor, (c, c))
         
         pos_img, ang_img, width_img = gtbbs.draw((output_size, output_size))
         width_img = np.clip(width_img, 0.0, output_size /2 ) / (output_size / 2)
         cos = np.cos(2 * ang_img)
         sin = np.sin(2 * ang_img)
+
+        rgb = dataset.rgb_files[i]
+        img = image.Image.from_file(rgb)
+
         
-        img.resize((output_size, output_size))        
-        original_img = img.copy()
-        img.normalise()
-        
+        rgb_img = image.Image.from_file(dataset.rgb_files[i])
+        rgb_img.rotate(rot)
+        rgb_img.zoom(zoom_factor)
+        rgb_img.resize((output_size, output_size))
+        before_norm_img = rgb_img.copy()
+        rgb_img.normalise()
+
         # Depth
         depth_input = imread(dataset.depth_files[i])
         depth_img = image.DepthImage.from_tiff(dataset.depth_files[i])
-        depth_img.inpaint()
-        depth_img.resize((output_size, output_size))
+        inpaint_depth = depth_img.copy()
+        inpaint_depth.inpaint()
+        depth_img.rotate(rot)
         depth_img.normalise()
-
+        depth_img.zoom(zoom_factor)
+        depth_img.resize((output_size, output_size))
 
 
     fig = plt.figure()
@@ -222,7 +223,7 @@ for i in pbar:
     
     rgb = imread(rgb)
     ax3 = fig.add_subplot(rows, cols, 7)
-    ax3.imshow(original_img)
+    ax3.imshow(img)
     ax3.set_title('original_rgb')
     ax3.axis("off")
 

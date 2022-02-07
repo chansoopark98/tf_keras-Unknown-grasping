@@ -64,10 +64,11 @@ class CornellDataset:
         rgb_img.crop((top, left), (min(480, top + self.output_size), min(640, left + self.output_size)))
         rgb_img.zoom(zoom)
         rgb_img.resize((self.output_size, self.output_size))
+        before_norm = rgb_img.copy()
         if normalise:
             rgb_img.normalise()
             # rgb_img.img = rgb_img.img.transpose((2, 0, 1))
-        return rgb_img.img
+        return rgb_img.img, before_norm.img
 
 class JacquardDataset:
     """
@@ -81,7 +82,7 @@ class JacquardDataset:
         :param kwargs: kwargs for GraspDatasetBase
         """
 
-        self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
+        self.grasp_files = glob.glob(os.path.join(file_path+'/*/', '*', '*_grasps.txt'))
         self.grasp_files.sort()
         self.length = len(self.grasp_files)
         self.output_size = output_size
@@ -117,9 +118,9 @@ class JacquardDataset:
         rgb_img.zoom(zoom)
         rgb_img.resize((self.output_size, self.output_size))
         before_norm = rgb_img.copy()
-        if normalise:
-            rgb_img.normalise()
-        return rgb_img.img, before_norm
+        # if normalise:
+        rgb_img.normalise()
+        return rgb_img.img, before_norm.img
 
     def get_jname(self, idx):
         return '_'.join(self.grasp_files[idx].split(os.sep)[-1].split('_')[:-1])

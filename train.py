@@ -105,12 +105,14 @@ os.makedirs(SAVE_WEIGHTS_DIR, exist_ok=True)
 output_size = IMAGE_SIZE[0]
 mode = 'cornell'
 cornell_path = './datasets/Cornell/'
-jacquard_path = './datasets/Samples/'
-dataset = CornellDataset(file_path=cornell_path, output_size=output_size)
-jacquard = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+jacquard_path = './datasets/Jacquard/'
+# dataset = CornellDataset(file_path=cornell_path, output_size=output_size)
+# jacquard = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+train_data = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+valid_data = CornellDataset(file_path=cornell_path, output_size=output_size)
 
 
-steps_per_epoch = dataset.length // BATCH_SIZE
+steps_per_epoch = train_data.length // BATCH_SIZE
 
 
 model_input, model_output = model_builder(input_shape=IMAGE_SIZE)
@@ -155,10 +157,10 @@ for epoch in range(EPOCHS):
     lr = decay(base_lr, current_epochs=epoch, epochs=EPOCHS)
     K.set_value(model.optimizer.learning_rate, lr)
     
-    batch_idx = list(range(dataset.length))
+    batch_idx = list(range(train_data.length))
     # batch_idx = batch_idx[validation_length:]
     # validation_idx = batch_idx[:validation_length]
-    validation_idx = list(range(jacquard.length))
+    validation_idx = list(range(valid_data.length))
 
     pbar = tqdm(range(len(batch_idx)//BATCH_SIZE), total=len(batch_idx)//BATCH_SIZE, desc='Batch', leave=True, disable=False)    
     for j in pbar:
@@ -187,11 +189,11 @@ for epoch in range(EPOCHS):
             
             
             # get bbox
-            bbs = dataset.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            bbs = train_data.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
             # get depth
-            depth_img = dataset.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            depth_img = train_data.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
             # get img
-            rgb_img = dataset.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+            rgb_img, _ = train_data.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
             
             pos_img, ang_img, width_img = bbs.draw((output_size, output_size))
             width_img = np.clip(width_img, 0.0, output_size / 2) / (output_size / 2)
@@ -265,11 +267,11 @@ for epoch in range(EPOCHS):
                 validation_idx.remove(rnd_range)
                 
                 # get bbox
-                bbs = jacquard.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                bbs = valid_data.get_gtbb(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 # get depth
-                depth_img = jacquard.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                depth_img = valid_data.get_depth(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 # get img
-                rgb_img, rgb_ori = jacquard.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
+                rgb_img, rgb_ori = valid_data.get_rgb(idx=iter_idx, rot=rot, zoom=zoom_factor)
                 
                 pos_img, ang_img, width_img = bbs.draw((output_size, output_size))
                 width_img = np.clip(width_img, 0.0, output_size / 2) / (output_size / 2)
@@ -379,6 +381,7 @@ for epoch in range(EPOCHS):
                 ax0.axis("off")
 
                 plt.savefig(SAVE_WEIGHTS_DIR +'/'+ str(epoch) + '/'+ str(index)+'.png', dpi=200)
+                plt.close(fig)
                 index +=1
 
                 # grasps = grasp.detect_grasps(q_img, ang_img, width_img=width_img, no_grasps=1)
@@ -387,8 +390,8 @@ for epoch in range(EPOCHS):
                         # f.write(test_data.dataset.get_jname(didx) + '\n')
                         # f.write(g.to_jacquard(scale=1024 / 300) + '\n')
                 if i == 0:
-                    plot_rgb, _ = jacquard.get_rgb(i, rot, zoom_factor, normalise=False)
-                    plot_depth = jacquard.get_depth(i, rot, zoom=zoom_factor)
+                    plot_rgb, _ = valid_data.get_rgb(i, rot, zoom_factor, normalise=False)
+                    plot_depth = valid_data.get_depth(i, rot, zoom=zoom_factor)
                     save_results(rgb_img=plot_rgb,
                     depth_img=plot_depth,
                     grasp_q_img=q_img,
