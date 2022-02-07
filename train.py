@@ -109,6 +109,8 @@ jacquard_path = './datasets/Jacquard/'
 # dataset = CornellDataset(file_path=cornell_path, output_size=output_size)
 # jacquard = JacquardDataset(file_path=jacquard_path, output_size=output_size)
 train_data = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+# valid_data = JacquardDataset(file_path=jacquard_path, output_size=output_size)
+# train_data = CornellDataset(file_path=cornell_path, output_size=output_size)
 valid_data = CornellDataset(file_path=cornell_path, output_size=output_size)
 
 

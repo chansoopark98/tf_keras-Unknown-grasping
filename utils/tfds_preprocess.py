@@ -18,9 +18,10 @@ def preprocess(sample):
     tfds_depth = sample['depth']
     tfds_box = sample['box']
     
-    return (tfds_box)
+    return (tfds_rgb, tfds_depth, tfds_box)
 
-def augment(tfds_box):
+def augment(tfds_rgb, tfds_depth, tfds_box):
+
     # get center
     c = output_size // 2
 
@@ -48,17 +49,37 @@ def augment(tfds_box):
     width_img = tf.expand_dims(width_img, axis=-1)
 
     output = tf.concat([pos_img, cos, sin, width_img], axis=-1)
-    return output
+
+
+
+    # input data
+    rgb_img = image.Image.from_tensor(tfds_rgb)
+    rgb_img.rotate(rot)
+    rgb_img.zoom(zoom_factor)
+    rgb_img.resize((output_size, output_size))
+    rgb_img.normalise()
+
+    # Depth
+    depth_img = image.DepthImage.from_tensor(tfds_depth)
+    depth_img.rotate(rot)
+    depth_img.normalise()
+    depth_img.zoom(zoom_factor)
+    depth_img.resize((output_size, output_size))
+
+    input = tf.concat([rgb_img, depth_img], axis=-1)
+    input = tf.cast(input, tf.float64)
+    return (input, output)
     
 train_data = train_data.map(preprocess)
 # train_data = train_data.map(augment)
-train_data = train_data.map(lambda train_data: tf.py_function(augment, [train_data], [tf.float64]))
+train_data = train_data.map(lambda tfds_rgb, tfds_depth, tfds_box: tf.py_function(augment, [tfds_rgb, tfds_depth, tfds_box], [tf.float64]))
 
 rows=1
 cols=4
 train_data = train_data.take(100)
 
-for output in train_data:
+for input, output in train_data:
+    
     # pos_img = label[0]
     # cos = label[1]
     # sin = label[2]
@@ -86,17 +107,15 @@ for output in train_data:
     ax1.set_title('width')
     ax1.axis("off")
 
+    ax2 = fig.add_subplot(rows, cols, 5)
+    ax2.imshow(input[0][:, :, :3])
+    ax2.set_title('sin')
+    ax2.axis("off")
 
-
-    # ax2 = fig.add_subplot(rows, cols, 3)
-    # ax2.imshow(sin)
-    # ax2.set_title('sin')
-    # ax2.axis("off")
-
-    # ax3 = fig.add_subplot(rows, cols, 4)
-    # ax3.imshow(width_img)
-    # ax3.set_title('width_img')
-    # ax3.axis("off")
+    ax3 = fig.add_subplot(rows, cols, 6)
+    ax3.imshow(input[0][:, :, 3:])
+    ax3.set_title('width_img')
+    ax3.axis("off")
 
     # q_img, ang_img, width_img = post_processing(q_img=pos_img,
     #                                         cos_img=cos,
