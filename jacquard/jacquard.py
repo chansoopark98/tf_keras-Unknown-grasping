@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import io
 import tifffile as tiff
+from imageio import imread, imsave, imwrite
 from torch import from_file
 # import .utils.dataset_processing.grasp as grasp
 # import .utils.dataset_processing.image as image
@@ -61,7 +62,7 @@ class Jacquard(tfds.core.GeneratorBasedBuilder):
             # These are the features of your dataset like images, labels ...
             'rgb': tfds.features.Image(shape=(None, None, 3)),
             'depth': tfds.features.Tensor(shape=(1024, 1024, 1), dtype=tf.float32),
-            'box': tfds.features.Tensor(shape=(None, 4, 2), dtype=tf.float32),
+            'box': tfds.features.Tensor(shape=(None, 4, 2), dtype=tf.int64),
         }),
         # If there's a common (input, target) tuple from the
         # features, specify them here. They'll be used if
@@ -80,34 +81,40 @@ class Jacquard(tfds.core.GeneratorBasedBuilder):
 
     # TODO(cornell_grasp): Returns the Dict[split names, Iterator[Key, Example]]
     return {
-        'train': self._generate_examples(img_path=extracted_path/'rgb', label_path=extracted_path/'depth', box_path=extracted_path/'box')
+        # 'train': self._generate_examples(path=extracted_path/'Jacquard/Jacquard_Dataset_0/')
+        'train': self._generate_examples(path=extracted_path/'Jacquard/')
     }
 
-  def _generate_examples(self, img_path, label_path, box_path):
+  def _generate_examples(self, path):
     """Yields examples."""
-    img = os.path.join(img_path, '*.png')
-    label = os.path.join(label_path,'*.tif')
-    box = os.path.join(box_path, '*.txt')
     
-    img_files = glob.glob(img)
-    img_files.sort()
-    label_files = tf.io.gfile.glob(label)
-    label_files.sort()
-    box_files = glob.glob(box)
-    box_files.sort()
+    grasp_files = glob.glob(os.path.join(path, '*/*', '*_grasps.txt'))
+    grasp_files.sort()
+    length = len(grasp_files)
+    output_size = 300
+    depth_files = [f.replace('grasps.txt', 'perfect_depth.tiff') for f in grasp_files]
+    rgb_files = [f.replace('perfect_depth.tiff', 'RGB.png') for f in depth_files]
+    
+    # img = os.path.join(img_path, '*.png')
+    # label = os.path.join(label_path,'*.tif')
+    # box = os.path.join(box_path, '*.txt')
 
-
+    # label_files = tf.io.gfile.glob(label)
+    # label_files.sort()
+    # box_files = glob.glob(box)
+    # box_files.sort()
   
-    for i in range(len(img_files)):
-      gtbbs = grasp.GraspRectangles.load_from_jacquard_file(box_files[i], scale=224/1024.)
+    for i in range(length):
+      gtbbs = grasp.GraspRectangles.load_from_jacquard_file(grasp_files[i], scale=output_size/1024.)
       gtbbs = gtbbs.to_array()
-      bbs = np.array(gtbbs)
-      bbs = tf.convert_to_tensor(gtbbs, tf.float32)
-      bbs =bbs.numpy()
+      # bbs = np.array(gtbbs)
+      # bbs = tf.convert_to_tensor(gtbbs, tf.float32)
+      # bbs =bbs.numpy()
+
       yield i, {
-          'rgb': img_files[i],
-          'depth': self._load_tif(label_files[i]),
-          'box' : bbs
+          'rgb': imread(rgb_files[i]),
+          'depth': self._load_tif(depth_files[i]),
+          'box' : gtbbs
       }
 
   def _load_tif(self, filename: str) -> np.ndarray:

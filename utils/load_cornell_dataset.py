@@ -3,6 +3,7 @@ import os
 from imageio import imread, imsave, imwrite
 from tqdm import tqdm
 import shutil
+from utils.dataset_processing import grasp, image
 
 class CornellDataset:
     def __init__(self, file_path):
@@ -19,7 +20,8 @@ class CornellDataset:
 class JacquardDataset:
     def __init__(self, file_path):
 
-        self.grasp_files = glob.glob(os.path.join(file_path, '*', '*_grasps.txt'))
+        
+        self.grasp_files = glob.glob(os.path.join(file_path+'/*/', '*', '*_grasps.txt'))
         self.grasp_files.sort()
         self.length = len(self.grasp_files)
 
@@ -40,10 +42,9 @@ os.makedirs(depth_path, exist_ok=True)
 os.makedirs(box_path, exist_ok=True)
 
 # dataset = CornellDataset(file_path='./datasets/')
-dataset = JacquardDataset(file_path='./datasets/Samples/')
+dataset = JacquardDataset(file_path='./datasets/Jacquard/')
 pbar = tqdm(range(dataset.length))
 for i in pbar:
-    print(dataset.rgb_files[i])
     rgb = imread(dataset.rgb_files[i])
     imsave(rgb_path + str(i) + '_rgb.png', rgb)
     depth = imread(dataset.depth_files[i])

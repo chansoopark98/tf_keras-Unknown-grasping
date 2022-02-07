@@ -70,6 +70,7 @@ class CornellDataset:
             # rgb_img.img = rgb_img.img.transpose((2, 0, 1))
         return rgb_img.img, before_norm.img
 
+
 class JacquardDataset:
     """
     Dataset wrapper for the Jacquard dataset.

@@ -155,6 +155,9 @@ for i in pbar:
     else:
         bbox = dataset.grasp_files[i]
         gtbbs = grasp.GraspRectangles.load_from_jacquard_file(bbox, output_size/1024.)
+        get_shape = gtbbs.to_array()
+        
+        print(get_shape.shape)
         c = output_size // 2
         gtbbs.rotate(rot, (c, c))
         gtbbs.zoom(zoom_factor, (c, c))
